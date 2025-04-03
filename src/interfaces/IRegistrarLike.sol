@@ -7,20 +7,22 @@ pragma solidity 0.8.26;
  * @author M^0 Labs
  */
 interface IRegistrarLike {
+    /* ============ Interactive Functions ============ */
+
+    /// @notice Adds `account` to `list`.
+    function addToList(bytes32 list, address account) external;
+
+    /// @notice Removes `account` from `list`.
+    function removeFromList(bytes32 list, address account) external;
+
+    /// @notice Sets the value of `key` to `value`.
+    function setKey(bytes32 key, bytes32 value) external;
+
     /* ============ View/Pure Functions ============ */
 
-    /**
-     * @notice Returns the value of `key`.
-     * @param  key   Some key.
-     * @return value Some value.
-     */
+    /// @notice Returns the value of `key`.
     function get(bytes32 key) external view returns (bytes32);
 
-    /**
-     * @notice Returns whether `list` contains `account` or not.
-     * @param  list     The key for some list.
-     * @param  account  The address of some account.
-     * @return contains Whether `list` contains `account` or not.
-     */
+    /// @notice Returns whether `list` contains `account` or not.
     function listContains(bytes32 list, address account) external view returns (bool);
 }

@@ -10,6 +10,15 @@ interface IMTokenLike {
     /* ============ Interactive Functions ============ */
 
     /**
+     * @notice Allows a calling account to approve `spender` to spend up to `amount` of its token balance.
+     * @dev    MUST emit an `Approval` event.
+     * @param  spender The address of the account being allowed to spend up to the allowed amount.
+     * @param  amount  The amount of the allowance being approved.
+     * @return Whether or not the approval was successful.
+     */
+    function approve(address spender, uint256 amount) external returns (bool);
+
+    /**
      * @notice Approves `spender` to spend up to `amount` of the token balance of `owner`, via a signature.
      * @param  owner    The address of the account who's token balance is being approved to be spent by `spender`.
      * @param  spender  The address of an account allowed to spend on behalf of `owner`.
@@ -87,4 +96,10 @@ interface IMTokenLike {
      * @return The principal balance of the account.
      */
     function principalBalanceOf(address account) external view returns (uint240);
+
+    /// @notice Returns the EIP712 domain separator used in the encoding of a signed digest.
+    function DOMAIN_SEPARATOR() external view returns (bytes32);
+
+    /// @notice Returns the EIP712 typehash used in the encoding of the digest for the permit function.
+    function PERMIT_TYPEHASH() external view returns (bytes32);
 }
