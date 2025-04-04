@@ -22,12 +22,6 @@ abstract contract MExtension is IMExtension, ERC20Extended {
     /// @inheritdoc IMExtension
     address public immutable registrar;
 
-    /// @inheritdoc IMExtension
-    uint128 public enableMIndex;
-
-    /// @inheritdoc IMExtension
-    uint128 public disableIndex;
-
     /// @dev Registrar key holding value of whether the earners list can be ignored or not.
     bytes32 internal constant _EARNERS_LIST_IGNORED = "earners_list_ignored";
 
@@ -94,7 +88,7 @@ abstract contract MExtension is IMExtension, ERC20Extended {
         if (!_isThisApprovedEarner()) revert NotApprovedEarner(address(this));
         if (isEarningEnabled()) revert EarningIsEnabled();
 
-        emit EarningEnabled(enableMIndex = _currentMIndex());
+        emit EarningEnabled(_currentMIndex());
 
         IMTokenLike(mToken).startEarning();
     }
@@ -104,9 +98,7 @@ abstract contract MExtension is IMExtension, ERC20Extended {
         if (_isThisApprovedEarner()) revert IsApprovedEarner(address(this));
         if (!isEarningEnabled()) revert EarningIsDisabled();
 
-        emit EarningDisabled(disableIndex = currentIndex());
-
-        delete enableMIndex;
+        emit EarningDisabled(_currentMIndex());
 
         IMTokenLike(mToken).stopEarning();
     }
@@ -114,48 +106,46 @@ abstract contract MExtension is IMExtension, ERC20Extended {
     /* ============ View/Pure Functions ============ */
 
     /// @inheritdoc IMExtension
-    function currentIndex() public view returns (uint128) {
-        uint128 disableIndex_ = disableIndex == 0 ? _EXP_SCALED_ONE : disableIndex;
-
-        unchecked {
-            return
-                enableMIndex == 0
-                    ? disableIndex_
-                    : UIntMath.safe128((uint256(disableIndex_) * _currentMIndex()) / enableMIndex);
-        }
-    }
-
-    /// @inheritdoc IMExtension
     function isEarningEnabled() public view returns (bool) {
-        return enableMIndex != 0;
+        return IMTokenLike(mToken).isEarning(address(this));
     }
 
     /* ============ Internal Interactive Functions ============ */
 
     /**
-     * @dev    Wraps `amount` M from `account` into MExtension for `recipient`.
+     * @dev    Wraps `amount` M from `account` into M Extension for `recipient`.
      * @param  account   The account from which M is deposited.
-     * @param  recipient The account receiving the minted wM.
+     * @param  recipient The account receiving the minted M Extension token.
      * @param  amount    The amount of M deposited.
      */
     function _wrap(address account, address recipient, uint256 amount) internal {
         // NOTE: The behavior of `IMTokenLike.transferFrom` is known, so its return can be ignored.
         IMTokenLike(mToken).transferFrom(account, address(this), amount);
 
-        // Mints precise amount of Wrapped $M to `recipient`.
+        // NOTE: Mints precise amount of M Extension token to `recipient`..
+        //       Option 1: $M transfer from an $M earner to another $M earner (M Extension in earning state) → rounds up → rounds up,
+        //                 0, 1, or XX extra wei may be locked in M Extension compared to the minted amount of M Extension token.
+        //
+        //       Option 2: $M transfer from an $M non-earner to an $M earner (M Extension in earning state) → precise $M transfer → rounds down,
+        //                 0, -1, or -XX wei may be deducted from $M locked in M Extension compared to the minted amount of M Extension token.
         _mint(recipient, amount);
     }
 
     /**
-     * @dev    Unwraps `amount` wM from `account_` into M for `recipient`.
-     * @param  account   The account from which WM is burned.
+     * @dev    Unwraps `amount` M Extension token from `account_` into M for `recipient`.
+     * @param  account   The account from which M Extension token is burned.
      * @param  recipient The account receiving the withdrawn M.
-     * @param  amount    The amount of wM burned.
+     * @param  amount    The amount of M Extension token burned.
      */
     function _unwrap(address account, address recipient, uint256 amount) internal {
         _burn(account, amount);
 
         // NOTE: The behavior of `IMTokenLike.transfer` is known, so its return can be ignored.
+
+        // NOTE: Computes the actual decrease in the $M balance of the M Extension contract.
+        //       Option 1: $M transfer from an $M earner (M Extension in earning state) to another $M earner → rounds up.
+        //       Option 2: $M transfer from an $M earner (M Extension in earning state) to an $M non-earner → precise $M transfer.
+        //       In both cases, 0, 1, or XX extra wei may be deducted from the M Extension contract's $M balance compared to the burned amount of M Extension token.
         IMTokenLike(mToken).transfer(recipient, amount);
     }
 

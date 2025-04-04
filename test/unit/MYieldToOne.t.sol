@@ -48,8 +48,6 @@ contract MYieldToOneUnitTests is Test {
         assertEq(_mYieldToOne.name(), "HALO USD");
         assertEq(_mYieldToOne.symbol(), "HUSD");
         assertEq(_mYieldToOne.decimals(), 6);
-        assertEq(_mYieldToOne.enableMIndex(), 0);
-        assertEq(_mYieldToOne.disableIndex(), 0);
     }
 
     function test_constructor_zeroMToken() external {
@@ -293,16 +291,12 @@ contract MYieldToOneUnitTests is Test {
 
         _mToken.setCurrentIndex(1_210000000000);
 
-        assertEq(_mYieldToOne.enableMIndex(), 0);
-        assertEq(_mYieldToOne.currentIndex(), 1_000000000000);
-
         vm.expectEmit();
         emit IMExtension.EarningEnabled(1_210000000000);
 
         _mYieldToOne.enableEarning();
 
-        assertEq(_mYieldToOne.enableMIndex(), 1_210000000000);
-        assertEq(_mYieldToOne.currentIndex(), 1_000000000000);
+        assertEq(_mYieldToOne.isEarningEnabled(), true);
     }
 
     /* ============ disableEarning ============ */
@@ -323,41 +317,15 @@ contract MYieldToOneUnitTests is Test {
         _registrar.setListContains(_EARNERS_LIST_NAME, address(_mYieldToOne), true);
         _mYieldToOne.enableEarning();
 
-        _mToken.setCurrentIndex(1_210000000000);
-
-        assertEq(_mYieldToOne.enableMIndex(), 1_100000000000);
-        assertEq(_mYieldToOne.disableIndex(), 0);
-        assertEq(_mYieldToOne.currentIndex(), 1_100000000000);
+        _mToken.setCurrentIndex(1_200000000000);
 
         _registrar.setListContains(_EARNERS_LIST_NAME, address(_mYieldToOne), false);
 
         vm.expectEmit();
-        emit IMExtension.EarningDisabled(1_100000000000);
+        emit IMExtension.EarningDisabled(1_200000000000);
 
         _mYieldToOne.disableEarning();
 
-        assertEq(_mYieldToOne.enableMIndex(), 0);
-        assertEq(_mYieldToOne.disableIndex(), 1_100000000000);
-        assertEq(_mYieldToOne.currentIndex(), 1_100000000000);
-    }
-
-    /* ============ currentIndex ============ */
-    function test_currentIndex() external {
-        assertEq(_mYieldToOne.currentIndex(), _EXP_SCALED_ONE);
-
-        _mToken.setCurrentIndex(1_100000000000);
-        _registrar.setListContains(_EARNERS_LIST_NAME, address(_mYieldToOne), true);
-        _mYieldToOne.enableEarning();
-
-        assertEq(_mYieldToOne.currentIndex(), _EXP_SCALED_ONE);
-
-        _mToken.setCurrentIndex(1_210000000000);
-
-        _registrar.setListContains(_EARNERS_LIST_NAME, address(_mYieldToOne), false);
-        _mYieldToOne.disableEarning();
-
-        assertEq(_mYieldToOne.currentIndex(), 1_100000000000);
-        assertEq(_mYieldToOne.disableIndex(), 1_100000000000);
-        assertEq(_mYieldToOne.enableMIndex(), 0);
+        assertEq(_mYieldToOne.isEarningEnabled(), false);
     }
 }

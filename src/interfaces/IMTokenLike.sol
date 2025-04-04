@@ -88,7 +88,7 @@ interface IMTokenLike {
     function balanceOf(address account) external view returns (uint256);
 
     /// @notice The current index that would be written to storage if `updateIndex` is called.
-    function currentIndex() external view returns (uint128 currentIndex);
+    function currentIndex() external view returns (uint128);
 
     /**
      * @notice The principal of an earner M token balance.

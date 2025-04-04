@@ -101,15 +101,6 @@ interface IMExtension is IERC20Extended {
     /// @notice The address of the TTG Registrar contract.
     function registrar() external view returns (address);
 
-    /// @notice The current index of M extension earning mechanism.
-    function currentIndex() external view returns (uint128);
-
-    /// @notice The M token's index when earning was most recently enabled.
-    function enableMIndex() external view returns (uint128);
-
-    /// @notice The M extension's index when earning was most recently disabled.
-    function disableIndex() external view returns (uint128);
-
     /// @notice Whether M extension earning is enabled.
     function isEarningEnabled() external view returns (bool);
 }
