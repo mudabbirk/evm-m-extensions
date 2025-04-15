@@ -11,19 +11,15 @@ import { MExtension } from "./MExtension.sol";
 
 import { Blacklistable } from "./Blacklistable.sol";
 
-import { AccessControl } from "@openzeppelin/contracts/access/AccessControl.sol";
-
 /**
  * @title  ERC20 Token contract for wrapping M into a non-rebasing token with claimable yields.
  * @author M^0 Labs
  */
-contract MYieldToOne is IMYieldToOne, MExtension, Blacklistable, AccessControl {
-    
+contract MYieldToOne is IMYieldToOne, MExtension, Blacklistable {
     /* ============ Variables ============ */
 
-    bytes32 public constant BLACKLISTER_ROLE = keccak256("BLACKLISTER_ROLE");
-
-    bytes32 public constant RECIPIENT_SETTER_ROLE = keccak256("RECIPIENT_SETTER_ROLE");
+    /// @inheritdoc IMYieldToOne
+    bytes32 public constant YIELD_RECIPIENT_MANAGER_ROLE = keccak256("YIELD_RECIPIENT_MANAGER_ROLE");
 
     /// @inheritdoc IMYieldToOne
     address public yieldRecipient;
@@ -38,31 +34,31 @@ contract MYieldToOne is IMYieldToOne, MExtension, Blacklistable, AccessControl {
 
     /**
      * @dev   Constructs the M extension token with yield claimable by a single recipient.
-     * @param mToken            The address of an M Token.
-     * @param registrar         The address of a registrar.
-     * @param yieldRecipient_   The address of an yield destination.
-     * @param defaultAdmin      The address of a default admin.
-     * @param blacklister       The address of a blacklister.
-     * @param recipientSetter   The address of a recipient setter.
-     * @param blacklistedAccounts The list of accounts to blacklist.
+     * @param name_                  The name of the token (e.g. "M Yield to One").
+     * @param symbol_                The symbol of the token (e.g. "MYO").
+     * @param mToken_                The address of an M Token.
+     * @param registrar_             The address of a registrar.
+     * @param yieldRecipient_        The address of an yield destination.
+     * @param defaultAdmin_          The address of a default admin.
+     * @param blacklistManager_      The address of a blacklist manager.
+     * @param yieldRecipientManager_ The address of a recipient setter.
      */
     constructor(
-        address mToken,
-        address registrar,
+        string memory name_,
+        string memory symbol_,
+        address mToken_,
+        address registrar_,
         address yieldRecipient_,
-        address defaultAdmin,
-        address blacklister,
-        address recipientSetter,
-        address[] memory blacklistedAccounts
-    ) MExtension("HALO USD", "HUSD", mToken, registrar) Blacklistable(blacklistedAccounts) {
-        if ((yieldRecipient = yieldRecipient_) == address(0)) revert ZeroYieldRecipient();
-        if (blacklister == address(0)) revert ZeroBlacklister();
-        if (recipientSetter == address(0)) revert ZeroRecipientSetter();
-        if (defaultAdmin == address(0)) revert ZeroDefaultAdmin();
+        address defaultAdmin_,
+        address blacklistManager_,
+        address yieldRecipientManager_
+    ) MExtension(name_, symbol_, mToken_, registrar_) Blacklistable(blacklistManager_) {
+        if (yieldRecipientManager_ == address(0)) revert ZeroYieldRecipientManager();
+        if (defaultAdmin_ == address(0)) revert ZeroDefaultAdmin();
+        _setYieldRecipient(yieldRecipient_);
 
-        _grantRole(DEFAULT_ADMIN_ROLE, defaultAdmin);
-        _grantRole(BLACKLISTER_ROLE, blacklister);
-        _grantRole(RECIPIENT_SETTER_ROLE, recipientSetter);
+        _grantRole(DEFAULT_ADMIN_ROLE, defaultAdmin_);
+        _grantRole(YIELD_RECIPIENT_MANAGER_ROLE, yieldRecipientManager_);
     }
 
     /* ============ Interactive Functions ============ */
@@ -80,23 +76,13 @@ contract MYieldToOne is IMYieldToOne, MExtension, Blacklistable, AccessControl {
 
         return yield_;
     }
-    /// @inheritdoc IMYieldToOne
-    function blacklist(address account) external onlyRole(BLACKLISTER_ROLE) {
-        _blacklist(account);
-    }
 
     /// @inheritdoc IMYieldToOne
-    function unblacklist(address account) external onlyRole(BLACKLISTER_ROLE) {
-        _unblacklist(account);
-    }
-
-    /// @inheritdoc IMYieldToOne
-    function setYieldRecipient(address account) external onlyRole(RECIPIENT_SETTER_ROLE) {
+    function setYieldRecipient(address account) external onlyRole(YIELD_RECIPIENT_MANAGER_ROLE) {
         if (account == address(0)) revert ZeroYieldRecipient();
         yieldRecipient = account;
         emit YieldRecipientSet(account);
     }
-
 
     /* ============ View/Pure Functions ============ */
 
@@ -111,11 +97,21 @@ contract MYieldToOne is IMYieldToOne, MExtension, Blacklistable, AccessControl {
     /* ============ Internal Interactive Functions ============ */
 
     /**
+     * @dev    Hooks called before wrapping M into M Extension token.
+     * @param  account   The account from which M is deposited.
+     * @param  recipient The account receiving the minted M Extension token.
+     */
+    function _beforeWrap(address account, address recipient, uint256 /* amount */) internal view override {
+        _revertIfBlacklisted(account);
+        _revertIfBlacklisted(recipient);
+    }
+
+    /**
      * @dev   Mints `amount` tokens to `recipient`.
      * @param recipient The address whose account balance will be incremented.
      * @param amount    The present amount of tokens to mint.
      */
-    function _mint(address recipient, uint256 amount) internal override ifNotBlacklisted(recipient) {
+    function _mint(address recipient, uint256 amount) internal override {
         _revertIfInsufficientAmount(amount);
         _revertIfInvalidRecipient(recipient);
 
@@ -128,11 +124,21 @@ contract MYieldToOne is IMYieldToOne, MExtension, Blacklistable, AccessControl {
     }
 
     /**
+     * @dev   Hook called before unwrapping M Extension token.
+     * @param account   The account from which M Extension token is burned.
+     * @param recipient The account receiving the withdrawn M.
+     */
+    function _beforeUnwrap(address account, address recipient, uint256 /* amount */) internal view override {
+        _revertIfBlacklisted(account);
+        _revertIfBlacklisted(recipient);
+    }
+
+    /**
      * @dev   Burns `amount` tokens from `account`.
      * @param account The address whose account balance will be decremented.
      * @param amount  The present amount of tokens to burn.
      */
-    function _burn(address account, uint256 amount) internal override ifNotBlacklisted(account) {
+    function _burn(address account, uint256 amount) internal override {
         _revertIfInsufficientAmount(amount);
 
         uint256 balance_ = balanceOf[account];
@@ -153,7 +159,12 @@ contract MYieldToOne is IMYieldToOne, MExtension, Blacklistable, AccessControl {
      * @param recipient The recipient's address.
      * @param amount    The amount to be transferred.
      */
-    function _transfer(address sender, address recipient, uint256 amount) internal override ifNotBlacklisted(sender) ifNotBlacklisted(recipient) ifNotBlacklisted(msg.sender) {
+    function _transfer(address sender, address recipient, uint256 amount) internal override {
+        // `msg.sender` may use `transferFrom` to transfer tokens on behalf of a `sender` address not blacklisted.
+        // So we need to check if `msg.sender` is blacklisted to avoid tokens transfer by a blacklisted address.
+        _revertIfBlacklisted(msg.sender);
+        _revertIfBlacklisted(sender);
+        _revertIfBlacklisted(recipient);
         _revertIfInvalidRecipient(recipient);
 
         emit Transfer(sender, recipient, amount);
@@ -167,8 +178,25 @@ contract MYieldToOne is IMYieldToOne, MExtension, Blacklistable, AccessControl {
         }
     }
 
-    function _approve(address account_, address spender_, uint256 amount_) internal override ifNotBlacklisted(account_) ifNotBlacklisted(spender_) {
-        super._approve(account_, spender_, amount_);
+    /**
+     * @dev Approve `spender` to spend `amount` of tokens from `account`.
+     * @param  account The address approving the allowance.
+     * @param  spender The address approved to spend the tokens.
+     * @param  amount  The amount of tokens being approved for spending.
+     */
+    function _approve(address account, address spender, uint256 amount) internal override {
+        _revertIfBlacklisted(account);
+        _revertIfBlacklisted(spender);
+
+        super._approve(account, spender, amount);
+    }
+
+    function _setYieldRecipient(address account) internal {
+        if (account == address(0)) revert ZeroYieldRecipient();
+
+        yieldRecipient = account;
+
+        emit YieldRecipientSet(account);
     }
 
     /* ============ Internal View/Pure Functions ============ */

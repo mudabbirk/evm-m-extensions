@@ -2,47 +2,57 @@
 
 pragma solidity 0.8.26;
 
+import { AccessControl } from "../../lib/openzeppelin-contracts/contracts/access/AccessControl.sol";
+
+import { IBlacklistable } from "./interfaces/IBlacklistable.sol";
+
 /**
  * @title Blacklistable
  * @notice A contract that allows for the blacklisting of accounts.
  * @dev This contract is used to prevent certain accounts from interacting with the contract.
  */
-abstract contract Blacklistable {
+abstract contract Blacklistable is IBlacklistable, AccessControl {
+    /* ============ Variables ============ */
 
-    /* ============ Errors ============ */
-    /// @notice Emitted when a blacklisted account attempts to interact with the contract.
-    error AccountBlacklisted(address account);
-    // @notice Emitted when trying to unblacklist a non-blacklisted account.
-    error AccountNotBlacklisted(address account);
+    /// @inheritdoc IBlacklistable
+    bytes32 public constant BLACKLIST_MANAGER_ROLE = keccak256("BLACKLIST_MANAGER_ROLE");
 
-    /* ============ Events ============ */
-    /// @notice Emitted when an account is blacklisted.
-    event Blacklisted(address account, uint256 timestamp);
-    /// @notice Emitted when an account is unblacklisted.
-    event Unblacklisted(address account, uint256 timestamp);
-
-    /* ============ Storage ============ */
-    /// @notice A mapping of accounts to their blacklist status.
+    /// @inheritdoc IBlacklistable
     mapping(address account => bool isBlacklisted) public isBlacklisted;
-
-    /* ============ Modifiers ============ */
-    /// @notice Modifier that reverts if an account is blacklisted.
-    modifier ifNotBlacklisted(address account) {
-        _revertIfBlacklisted(account);
-        _;
-    }
 
     /**
      * @notice Constructor that blacklists a list of accounts.
-     * @param blacklistedAccounts The list of accounts to blacklist.
+     * @param blacklistManager_ The address of a blacklist manager.
      */
-    constructor(address[] memory blacklistedAccounts) {
-        for (uint256 i = 0; i < blacklistedAccounts.length; i++) {
-            _blacklist(blacklistedAccounts[i]);
+    constructor(address blacklistManager_) {
+        if (blacklistManager_ == address(0)) revert ZeroBlacklistManager();
+        _grantRole(BLACKLIST_MANAGER_ROLE, blacklistManager_);
+    }
+
+    /* ============ Interactive Functions ============ */
+
+    /// @inheritdoc IBlacklistable
+    function blacklist(address account) external onlyRole(BLACKLIST_MANAGER_ROLE) {
+        _blacklist(account);
+    }
+
+    /// @inheritdoc IBlacklistable
+    function blacklistAccounts(address[] calldata accounts) external onlyRole(BLACKLIST_MANAGER_ROLE) {
+        for (uint256 i; i < accounts.length; ++i) {
+            _blacklist(accounts[i]);
         }
     }
 
-    /* ============ Internal Functions ============ */
+    /// @inheritdoc IBlacklistable
+    function unblacklist(address account) external onlyRole(BLACKLIST_MANAGER_ROLE) {
+        if (!isBlacklisted[account]) revert AccountNotBlacklisted(account);
+
+        isBlacklisted[account] = false;
+
+        emit Unblacklisted(account, block.timestamp);
+    }
+
+    /* ============ Internal Interactive Functions ============ */
 
     /**
      * @notice Internal function that blacklists an account.
@@ -50,20 +60,13 @@ abstract contract Blacklistable {
      */
     function _blacklist(address account) internal virtual {
         _revertIfBlacklisted(account);
+
         isBlacklisted[account] = true;
+
         emit Blacklisted(account, block.timestamp);
     }
 
-    /**
-     * @notice Internal function that unblacklists an account.
-     * @param account The account to unblacklist.
-     */
-    function _unblacklist(address account) internal virtual {
-        _revertIfNotBlacklisted(account);
-        isBlacklisted[account] = false;
-        emit Unblacklisted(account, block.timestamp);
-    }
-
+    /* ============ Internal View/Pure Functions ============ */
 
     /**
      * @notice Internal function that reverts if an account is blacklisted.
@@ -72,14 +75,4 @@ abstract contract Blacklistable {
     function _revertIfBlacklisted(address account) internal view {
         if (isBlacklisted[account]) revert AccountBlacklisted(account);
     }
-
-    /**
-     * @notice Internal function that reverts if an account is not blacklisted.
-     * @param account The account to check.
-     */
-    function _revertIfNotBlacklisted(address account) internal view {
-        if (!isBlacklisted[account]) revert AccountNotBlacklisted(account);
-    }
-
 }
-
