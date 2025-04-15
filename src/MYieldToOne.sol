@@ -41,6 +41,10 @@ contract MYieldToOne is IMYieldToOne, MExtension, Blacklistable, AccessControl {
      * @param mToken            The address of an M Token.
      * @param registrar         The address of a registrar.
      * @param yieldRecipient_   The address of an yield destination.
+     * @param defaultAdmin      The address of a default admin.
+     * @param blacklister       The address of a blacklister.
+     * @param recipientSetter   The address of a recipient setter.
+     * @param blacklistedAccounts The list of accounts to blacklist.
      */
     constructor(
         address mToken,
@@ -76,15 +80,17 @@ contract MYieldToOne is IMYieldToOne, MExtension, Blacklistable, AccessControl {
 
         return yield_;
     }
-
+    /// @inheritdoc IMYieldToOne
     function blacklist(address account) external onlyRole(BLACKLISTER_ROLE) {
         _blacklist(account);
     }
 
+    /// @inheritdoc IMYieldToOne
     function unblacklist(address account) external onlyRole(BLACKLISTER_ROLE) {
         _unblacklist(account);
     }
 
+    /// @inheritdoc IMYieldToOne
     function setYieldRecipient(address account) external onlyRole(RECIPIENT_SETTER_ROLE) {
         if (account == address(0)) revert ZeroYieldRecipient();
         yieldRecipient = account;
