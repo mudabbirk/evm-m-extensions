@@ -24,6 +24,9 @@ contract TestBase is Test {
     address internal constant _mSource = 0x3f0376da3Ae4313E7a5F1dA184BAFC716252d759;
 
     address internal _yieldRecipient = makeAddr("yieldRecipient");
+    address internal _defaultAdmin = makeAddr("defaultAdmin");
+    address internal _blacklister = makeAddr("blacklister");
+    address internal _recipientSetter = makeAddr("recipientSetter");
 
     address internal _alice = makeAddr("alice");
     address internal _bob = makeAddr("bob");

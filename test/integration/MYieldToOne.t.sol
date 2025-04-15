@@ -9,8 +9,8 @@ import { TestBase } from "./TestBase.sol";
 contract MYieldToOneIntegrationTests is TestBase {
     function setUp() external {
         _fundAccounts();
-
-        _mYieldToOne = new MYieldToOne(address(_mToken), address(_registrar), _yieldRecipient);
+        address[] memory blacklistedAccounts = new address[](0);
+        _mYieldToOne = new MYieldToOne(address(_mToken), address(_registrar), _yieldRecipient, _defaultAdmin, _blacklister, _recipientSetter, blacklistedAccounts);
     }
 
     function test_integration_constants() external view {

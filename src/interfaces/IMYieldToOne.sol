@@ -15,6 +15,12 @@ interface IMYieldToOne {
      */
     event YieldClaimed(uint256 yield);
 
+    /**
+     * @notice Emitted when the yield recipient is set.
+     * @param  newRecipient The address of the new yield recipient.
+     */
+    event YieldRecipientSet(address indexed newRecipient);
+
     /* ============ Custom Errors ============ */
 
     /**
@@ -31,10 +37,28 @@ interface IMYieldToOne {
     /// @notice Emitted in constructor if Yield Recipient is 0x0.
     error ZeroYieldRecipient();
 
+    /// @notice Emitted if no blacklister is set.
+    error ZeroBlacklister();
+
+    /// @notice Emitted if no recipient setter is set.
+    error ZeroRecipientSetter();
+
+    /// @notice Emitted if no default admin is set.
+    error ZeroDefaultAdmin();
+
     /* ============ Interactive Functions ============ */
 
     /// @notice Claims accrued yield to yield recipient.
     function claimYield() external returns (uint256);
+
+    /// @notice Blacklists an account.
+    function blacklist(address account) external;
+
+    /// @notice Unblacklists an account.
+    function unblacklist(address account) external;
+
+    /// @notice Sets the yield recipient.
+    function setYieldRecipient(address account) external;
 
     /* ============ View/Pure Functions ============ */
 

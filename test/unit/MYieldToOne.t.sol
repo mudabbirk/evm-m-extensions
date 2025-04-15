@@ -20,6 +20,9 @@ contract MYieldToOneUnitTests is Test {
     uint56 internal constant _EXP_SCALED_ONE = 1e12;
 
     address internal _yieldRecipient = makeAddr("yieldRecipient");
+    address internal _blacklister = makeAddr("blacklister");
+    address internal _recipientSetter = makeAddr("recipientSetter");
+    address internal _defaultAdmin = makeAddr("defaultAdmin");
 
     address internal _alice = makeAddr("alice");
     address internal _bob = makeAddr("bob");
@@ -37,7 +40,8 @@ contract MYieldToOneUnitTests is Test {
 
         _mToken = new MockM();
 
-        _mYieldToOne = new MYieldToOne(address(_mToken), address(_registrar), _yieldRecipient);
+        address[] memory blacklistedAccounts = new address[](0);
+        _mYieldToOne = new MYieldToOne(address(_mToken), address(_registrar), _yieldRecipient, _defaultAdmin, _blacklister, _recipientSetter, blacklistedAccounts);
     }
 
     /* ============ constructor ============ */
@@ -51,18 +55,21 @@ contract MYieldToOneUnitTests is Test {
     }
 
     function test_constructor_zeroMToken() external {
+        address[] memory blacklistedAccounts = new address[](0);
         vm.expectRevert(IMExtension.ZeroMToken.selector);
-        new MYieldToOne(address(0), address(_registrar), address(_yieldRecipient));
+        new MYieldToOne(address(0), address(_registrar), address(_yieldRecipient), _defaultAdmin, _blacklister, _recipientSetter, blacklistedAccounts);
     }
 
     function test_constructor_zeroRegistrar() external {
+        address[] memory blacklistedAccounts = new address[](0);
         vm.expectRevert(IMExtension.ZeroRegistrar.selector);
-        new MYieldToOne(address(_mToken), address(0), address(_yieldRecipient));
+        new MYieldToOne(address(_mToken), address(0), address(_yieldRecipient), _defaultAdmin, _blacklister, _recipientSetter, blacklistedAccounts);
     }
 
     function test_constructor_zeroYieldRecipient() external {
+        address[] memory blacklistedAccounts = new address[](0);
         vm.expectRevert(IMYieldToOne.ZeroYieldRecipient.selector);
-        new MYieldToOne(address(_mToken), address(_registrar), address(0));
+        new MYieldToOne(address(_mToken), address(_registrar), address(0), _defaultAdmin, _blacklister, _recipientSetter, blacklistedAccounts);
     }
 
     /* ============ _wrap ============ */
