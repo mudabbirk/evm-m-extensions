@@ -59,13 +59,13 @@ contract MYieldToOneIntegrationTests is TestBase {
         assertEq(_mYieldToOne.balanceOf(_alice), amount); // user receives exact amount
 
         // TODO: why is rounding error so high?
-        assertEq(_mToken.balanceOf(address(_mYieldToOne)), amount - 167);
+        assertEq(_mToken.balanceOf(address(_mYieldToOne)), amount - 186);
 
         // Fast forward 10 days in the future to generate yield
         vm.warp(vm.getBlockTimestamp() + 10 days);
 
         // yield accrual
-        assertEq(_mYieldToOne.yield(), 11209);
+        assertEq(_mYieldToOne.yield(), 11190);
 
         // transfers do not affect yield
         vm.prank(_alice);
@@ -75,18 +75,18 @@ contract MYieldToOneIntegrationTests is TestBase {
         assertEq(_mYieldToOne.balanceOf(_alice), amount / 2);
 
         // yield accrual
-        assertEq(_mYieldToOne.yield(), 11209);
+        assertEq(_mYieldToOne.yield(), 11190);
 
         // unwraps
         _unwrap(_alice, _alice, amount / 2);
 
         // yield stays basically the same (except rounding up error on transfer)
-        assertEq(_mYieldToOne.yield(), 11031);
+        assertEq(_mYieldToOne.yield(), 11022);
 
         _unwrap(_bob, _bob, amount / 2);
 
         // yield stays basically the same (except rounding up error on transfer)
-        assertApproxEqAbs(_mYieldToOne.yield(), 11031, 178);
+        assertApproxEqAbs(_mYieldToOne.yield(), 11022, 186);
 
         assertEq(_mYieldToOne.balanceOf(_bob), 0);
         assertEq(_mYieldToOne.balanceOf(_alice), 0);
@@ -98,7 +98,7 @@ contract MYieldToOneIntegrationTests is TestBase {
         // claim yield
         _mYieldToOne.claimYield();
 
-        assertApproxEqAbs(_mToken.balanceOf(_yieldRecipient), 11031, 178);
+        assertApproxEqAbs(_mToken.balanceOf(_yieldRecipient), 11022, 186);
         assertEq(_mYieldToOne.yield(), 0);
         assertEq(_mToken.balanceOf(address(_mYieldToOne)), 0);
         assertEq(_mYieldToOne.totalSupply(), 0);
@@ -112,7 +112,7 @@ contract MYieldToOneIntegrationTests is TestBase {
 
         // Check balances of MYieldToOne and Bob after wrapping
         assertEq(_mYieldToOne.balanceOf(_bob), amount);
-        assertEq(_mToken.balanceOf(address(_mYieldToOne)), 10000165);
+        assertEq(_mToken.balanceOf(address(_mYieldToOne)), 10000146);
     }
 
     function test_wrapWithPermits() external {

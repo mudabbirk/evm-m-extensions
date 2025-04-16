@@ -48,7 +48,13 @@ interface IMYieldToOne {
     /// @notice Claims accrued yield to yield recipient.
     function claimYield() external returns (uint256);
 
-    /// @notice Sets the yield recipient.
+    /**
+     * @notice Sets the yield recipient.
+     * @dev    MUST only be callable by the YIELD_RECIPIENT_MANAGER_ROLE.
+     * @dev    SHOULD revert if account is 0x0.
+     * @dev    SHOULD return early if the account is already the yield recipient.
+     * @param  account The address of the new yield recipient.
+     */
     function setYieldRecipient(address account) external;
 
     /* ============ View/Pure Functions ============ */

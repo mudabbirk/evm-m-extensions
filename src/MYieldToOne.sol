@@ -79,9 +79,7 @@ contract MYieldToOne is IMYieldToOne, MExtension, Blacklistable {
 
     /// @inheritdoc IMYieldToOne
     function setYieldRecipient(address account) external onlyRole(YIELD_RECIPIENT_MANAGER_ROLE) {
-        if (account == address(0)) revert ZeroYieldRecipient();
-        yieldRecipient = account;
-        emit YieldRecipientSet(account);
+        _setYieldRecipient(account);
     }
 
     /* ============ View/Pure Functions ============ */
@@ -180,9 +178,9 @@ contract MYieldToOne is IMYieldToOne, MExtension, Blacklistable {
 
     /**
      * @dev Approve `spender` to spend `amount` of tokens from `account`.
-     * @param  account The address approving the allowance.
-     * @param  spender The address approved to spend the tokens.
-     * @param  amount  The amount of tokens being approved for spending.
+     * @param account The address approving the allowance.
+     * @param spender The address approved to spend the tokens.
+     * @param amount  The amount of tokens being approved for spending.
      */
     function _approve(address account, address spender, uint256 amount) internal override {
         _revertIfBlacklisted(account);
@@ -191,8 +189,13 @@ contract MYieldToOne is IMYieldToOne, MExtension, Blacklistable {
         super._approve(account, spender, amount);
     }
 
+    /**
+     * @dev Sets the yield recipient.
+     * @param account The address of the new yield recipient.
+     */
     function _setYieldRecipient(address account) internal {
         if (account == address(0)) revert ZeroYieldRecipient();
+        if (account == yieldRecipient) return;
 
         yieldRecipient = account;
 
