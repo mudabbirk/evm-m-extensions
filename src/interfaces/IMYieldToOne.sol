@@ -37,11 +37,8 @@ interface IMYieldToOne {
     /// @notice Emitted in constructor if Yield Recipient is 0x0.
     error ZeroYieldRecipient();
 
-    /// @notice Emitted if no blacklister is set.
-    error ZeroBlacklister();
-
-    /// @notice Emitted if no recipient setter is set.
-    error ZeroRecipientSetter();
+    /// @notice Emitted if no recipient manager is set.
+    error ZeroYieldRecipientManager();
 
     /// @notice Emitted if no default admin is set.
     error ZeroDefaultAdmin();
@@ -51,16 +48,19 @@ interface IMYieldToOne {
     /// @notice Claims accrued yield to yield recipient.
     function claimYield() external returns (uint256);
 
-    /// @notice Blacklists an account.
-    function blacklist(address account) external;
-
-    /// @notice Unblacklists an account.
-    function unblacklist(address account) external;
-
-    /// @notice Sets the yield recipient.
+    /**
+     * @notice Sets the yield recipient.
+     * @dev    MUST only be callable by the YIELD_RECIPIENT_MANAGER_ROLE.
+     * @dev    SHOULD revert if account is 0x0.
+     * @dev    SHOULD return early if the account is already the yield recipient.
+     * @param  account The address of the new yield recipient.
+     */
     function setYieldRecipient(address account) external;
 
     /* ============ View/Pure Functions ============ */
+
+    /// @notice The role that can manage the yield recipient.
+    function YIELD_RECIPIENT_MANAGER_ROLE() external view returns (bytes32);
 
     /// @notice The address of the M Token contract.
     function yield() external view returns (uint256);

@@ -2,12 +2,15 @@
 
 pragma solidity 0.8.26;
 
-import { Test, console2 } from "../../lib/forge-std/src/Test.sol";
+import { Test } from "../../lib/forge-std/src/Test.sol";
+
+import { IAccessControl } from "../../lib/openzeppelin-contracts/contracts/access/IAccessControl.sol";
 
 import { MockM, MockRegistrar } from "../utils/Mocks.sol";
 
 import { MYieldToOne } from "../../src/MYieldToOne.sol";
 
+import { IBlacklistable } from "../../src/interfaces/IBlacklistable.sol";
 import { IMYieldToOne } from "../../src/interfaces/IMYieldToOne.sol";
 import { IMExtension } from "../../src/interfaces/IMExtension.sol";
 
@@ -15,13 +18,17 @@ import { IERC20 } from "../../lib/common/src/interfaces/IERC20.sol";
 import { IERC20Extended } from "../../lib/common/src/interfaces/IERC20Extended.sol";
 
 contract MYieldToOneUnitTests is Test {
+    bytes32 public constant DEFAULT_ADMIN_ROLE = 0x00;
+    bytes32 public constant BLACKLIST_MANAGER_ROLE = keccak256("BLACKLIST_MANAGER_ROLE");
+    bytes32 public constant YIELD_RECIPIENT_MANAGER_ROLE = keccak256("YIELD_RECIPIENT_MANAGER_ROLE");
+
     bytes32 internal constant _EARNERS_LIST_NAME = "earners";
 
     uint56 internal constant _EXP_SCALED_ONE = 1e12;
 
     address internal _yieldRecipient = makeAddr("yieldRecipient");
-    address internal _blacklister = makeAddr("blacklister");
-    address internal _recipientSetter = makeAddr("recipientSetter");
+    address internal _blacklistManager = makeAddr("blacklistManager");
+    address internal _yieldRecipientManager = makeAddr("yieldRecipientManager");
     address internal _defaultAdmin = makeAddr("defaultAdmin");
 
     address internal _alice = makeAddr("alice");
@@ -35,41 +42,122 @@ contract MYieldToOneUnitTests is Test {
     MockRegistrar internal _registrar;
     MYieldToOne internal _mYieldToOne;
 
+    string internal constant _NAME = "HALO USD";
+    string internal constant _SYMBOL = "HALO USD";
+
     function setUp() external {
         _registrar = new MockRegistrar();
 
         _mToken = new MockM();
 
-        address[] memory blacklistedAccounts = new address[](0);
-        _mYieldToOne = new MYieldToOne(address(_mToken), address(_registrar), _yieldRecipient, _defaultAdmin, _blacklister, _recipientSetter, blacklistedAccounts);
+        _mYieldToOne = new MYieldToOne(
+            _NAME,
+            _SYMBOL,
+            address(_mToken),
+            address(_registrar),
+            _yieldRecipient,
+            _defaultAdmin,
+            _blacklistManager,
+            _yieldRecipientManager
+        );
     }
 
     /* ============ constructor ============ */
+
     function test_constructor() external view {
+        assertEq(_mYieldToOne.name(), _NAME);
+        assertEq(_mYieldToOne.symbol(), _SYMBOL);
+        assertEq(_mYieldToOne.decimals(), 6);
         assertEq(_mYieldToOne.mToken(), address(_mToken));
         assertEq(_mYieldToOne.registrar(), address(_registrar));
-        assertEq(_mYieldToOne.yieldRecipient(), _yieldRecipient);
-        assertEq(_mYieldToOne.name(), "HALO USD");
-        assertEq(_mYieldToOne.symbol(), "HUSD");
-        assertEq(_mYieldToOne.decimals(), 6);
+
+        assertTrue(IAccessControl(address(_mYieldToOne)).hasRole(DEFAULT_ADMIN_ROLE, _defaultAdmin));
+        assertTrue(IAccessControl(address(_mYieldToOne)).hasRole(BLACKLIST_MANAGER_ROLE, _blacklistManager));
+        assertTrue(IAccessControl(address(_mYieldToOne)).hasRole(YIELD_RECIPIENT_MANAGER_ROLE, _yieldRecipientManager));
     }
 
     function test_constructor_zeroMToken() external {
-        address[] memory blacklistedAccounts = new address[](0);
         vm.expectRevert(IMExtension.ZeroMToken.selector);
-        new MYieldToOne(address(0), address(_registrar), address(_yieldRecipient), _defaultAdmin, _blacklister, _recipientSetter, blacklistedAccounts);
+        new MYieldToOne(
+            _NAME,
+            _SYMBOL,
+            address(0),
+            address(_registrar),
+            address(_yieldRecipient),
+            _defaultAdmin,
+            _blacklistManager,
+            _yieldRecipientManager
+        );
     }
 
     function test_constructor_zeroRegistrar() external {
-        address[] memory blacklistedAccounts = new address[](0);
         vm.expectRevert(IMExtension.ZeroRegistrar.selector);
-        new MYieldToOne(address(_mToken), address(0), address(_yieldRecipient), _defaultAdmin, _blacklister, _recipientSetter, blacklistedAccounts);
+        new MYieldToOne(
+            _NAME,
+            _SYMBOL,
+            address(_mToken),
+            address(0),
+            address(_yieldRecipient),
+            _defaultAdmin,
+            _blacklistManager,
+            _yieldRecipientManager
+        );
     }
 
     function test_constructor_zeroYieldRecipient() external {
-        address[] memory blacklistedAccounts = new address[](0);
         vm.expectRevert(IMYieldToOne.ZeroYieldRecipient.selector);
-        new MYieldToOne(address(_mToken), address(_registrar), address(0), _defaultAdmin, _blacklister, _recipientSetter, blacklistedAccounts);
+        new MYieldToOne(
+            _NAME,
+            _SYMBOL,
+            address(_mToken),
+            address(_registrar),
+            address(0),
+            _defaultAdmin,
+            _blacklistManager,
+            _yieldRecipientManager
+        );
+    }
+
+    function test_constructor_zeroDefaultAdmin() external {
+        vm.expectRevert(IMYieldToOne.ZeroDefaultAdmin.selector);
+        new MYieldToOne(
+            _NAME,
+            _SYMBOL,
+            address(_mToken),
+            address(_registrar),
+            address(_yieldRecipient),
+            address(0),
+            _blacklistManager,
+            _yieldRecipientManager
+        );
+    }
+
+    function test_constructor_zeroBlacklistManager() external {
+        vm.expectRevert(IBlacklistable.ZeroBlacklistManager.selector);
+        new MYieldToOne(
+            _NAME,
+            _SYMBOL,
+            address(_mToken),
+            address(_registrar),
+            address(_yieldRecipient),
+            _defaultAdmin,
+            address(0),
+            _yieldRecipientManager
+        );
+    }
+
+    function test_constructor_zeroYieldRecipientManager() external {
+        vm.expectRevert(IMYieldToOne.ZeroYieldRecipientManager.selector);
+        new MYieldToOne(
+            _NAME,
+            _SYMBOL,
+            address(_mToken),
+            address(_registrar),
+            address(_yieldRecipient),
+            _defaultAdmin,
+            _blacklistManager,
+            address(0)
+        );
     }
 
     /* ============ _wrap ============ */

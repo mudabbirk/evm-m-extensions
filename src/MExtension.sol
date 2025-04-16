@@ -113,12 +113,22 @@ abstract contract MExtension is IMExtension, ERC20Extended {
     /* ============ Internal Interactive Functions ============ */
 
     /**
+     * @dev    Hooks called before wrapping M into M Extension token.
+     * @param  account   The account from which M is deposited.
+     * @param  recipient The account receiving the minted M Extension token.
+     * @param  amount    The amount of M deposited.
+     */
+    function _beforeWrap(address account, address recipient, uint256 amount) internal virtual {}
+
+    /**
      * @dev    Wraps `amount` M from `account` into M Extension for `recipient`.
      * @param  account   The account from which M is deposited.
      * @param  recipient The account receiving the minted M Extension token.
      * @param  amount    The amount of M deposited.
      */
     function _wrap(address account, address recipient, uint256 amount) internal {
+        _beforeWrap(account, recipient, amount);
+
         // NOTE: The behavior of `IMTokenLike.transferFrom` is known, so its return can be ignored.
         IMTokenLike(mToken).transferFrom(account, address(this), amount);
 
@@ -132,12 +142,22 @@ abstract contract MExtension is IMExtension, ERC20Extended {
     }
 
     /**
+     * @dev   Hook called before unwrapping M Extension token.
+     * @param account   The account from which M Extension token is burned.
+     * @param recipient The account receiving the withdrawn M.
+     * @param amount    The amount of M Extension token burned.
+     */
+    function _beforeUnwrap(address account, address recipient, uint256 amount) internal virtual {}
+
+    /**
      * @dev    Unwraps `amount` M Extension token from `account_` into M for `recipient`.
      * @param  account   The account from which M Extension token is burned.
      * @param  recipient The account receiving the withdrawn M.
      * @param  amount    The amount of M Extension token burned.
      */
     function _unwrap(address account, address recipient, uint256 amount) internal {
+        _beforeUnwrap(account, recipient, amount);
+
         _burn(account, amount);
 
         // NOTE: The behavior of `IMTokenLike.transfer` is known, so its return can be ignored.
