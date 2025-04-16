@@ -158,9 +158,6 @@ contract MYieldToOne is IMYieldToOne, MExtension, Blacklistable {
      * @param amount    The amount to be transferred.
      */
     function _transfer(address sender, address recipient, uint256 amount) internal override {
-        // `msg.sender` may use `transferFrom` to transfer tokens on behalf of a `sender` address not blacklisted.
-        // So we need to check if `msg.sender` is blacklisted to avoid tokens transfer by a blacklisted address.
-        _revertIfBlacklisted(msg.sender);
         _revertIfBlacklisted(sender);
         _revertIfBlacklisted(recipient);
         _revertIfInvalidRecipient(recipient);
