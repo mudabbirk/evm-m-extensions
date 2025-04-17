@@ -384,6 +384,88 @@ contract MYieldToOneUnitTests is BaseUnitTest {
         assertEq(mToken.balanceOf(alice), 1000);
     }
 
+    /* ============ _transfer ============ */
+
+    function test_transfer_blacklistedSender() external {
+        uint256 amount = 1_000e6;
+        mToken.setBalanceOf(alice, amount);
+
+        vm.prank(alice);
+        mYieldToOne.wrap(alice, amount);
+
+        // Alice allows Carol to transfer tokens on her behalf
+        vm.prank(alice);
+        mYieldToOne.approve(carol, amount);
+
+        vm.prank(blacklistManager);
+        mYieldToOne.blacklist(carol);
+
+        // Reverts cause Carol is blacklisted and cannot transfer tokens on Alice's behalf
+        vm.expectRevert(abi.encodeWithSelector(IBlacklistable.AccountBlacklisted.selector, carol));
+
+        vm.prank(carol);
+        mYieldToOne.transferFrom(alice, bob, amount);
+    }
+
+    function test_transfer_blacklistedAccount() external {
+        uint256 amount = 1_000e6;
+        mToken.setBalanceOf(alice, amount);
+
+        vm.prank(alice);
+        mYieldToOne.wrap(alice, amount);
+
+        vm.prank(blacklistManager);
+        mYieldToOne.blacklist(alice);
+
+        vm.expectRevert(abi.encodeWithSelector(IBlacklistable.AccountBlacklisted.selector, alice));
+
+        vm.prank(alice);
+        mYieldToOne.transfer(bob, amount);
+    }
+
+    function test_transfer_blacklistedRecipient() external {
+        uint256 amount = 1_000e6;
+        mToken.setBalanceOf(alice, amount);
+
+        vm.prank(alice);
+        mYieldToOne.wrap(alice, amount);
+
+        vm.prank(blacklistManager);
+        mYieldToOne.blacklist(bob);
+
+        vm.expectRevert(abi.encodeWithSelector(IBlacklistable.AccountBlacklisted.selector, bob));
+
+        vm.prank(alice);
+        mYieldToOne.transfer(bob, amount);
+    }
+
+    function test_transfer_invalidRecipient() external {
+        uint256 amount = 1_000e6;
+        mToken.setBalanceOf(alice, amount);
+
+        vm.prank(alice);
+        mYieldToOne.wrap(alice, amount);
+
+        vm.expectRevert(abi.encodeWithSelector(IERC20Extended.InvalidRecipient.selector, 0));
+
+        vm.prank(alice);
+        mYieldToOne.transfer(address(0), amount);
+    }
+
+    function test_transfer() external {
+        uint256 amount = 1_000e6;
+        mToken.setBalanceOf(alice, amount);
+
+        vm.prank(alice);
+        mYieldToOne.wrap(alice, amount);
+
+        vm.expectEmit();
+        emit IERC20.Transfer(alice, bob, amount);
+
+        vm.prank(alice);
+        mYieldToOne.transfer(bob, amount);
+    }
+
     /* ============ yield ============ */
     function test_yield() external {
         mToken.setBalanceOf(alice, 1_000);

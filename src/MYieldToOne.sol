@@ -172,6 +172,7 @@ contract MYieldToOne is IMYieldToOne, MExtension, Blacklistable {
      * @param amount    The amount to be transferred.
      */
     function _transfer(address sender, address recipient, uint256 amount) internal override {
+        _revertIfBlacklisted(msg.sender);
         _revertIfBlacklisted(sender);
         _revertIfBlacklisted(recipient);
         _revertIfInvalidRecipient(recipient);
