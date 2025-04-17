@@ -2,12 +2,11 @@
 
 pragma solidity 0.8.26;
 
-import { ERC20Extended } from "../lib/common/src/ERC20Extended.sol";
-import { UIntMath } from "../lib/common/src/libs/UIntMath.sol";
+import { ERC20Extended } from "../../lib/common/src/ERC20Extended.sol";
 
-import { IMTokenLike } from "./interfaces/IMTokenLike.sol";
-import { IMExtension } from "./interfaces/IMExtension.sol";
-import { IRegistrarLike } from "./interfaces/IRegistrarLike.sol";
+import { IMTokenLike } from "../interfaces/IMTokenLike.sol";
+import { IMExtension } from "../interfaces/IMExtension.sol";
+import { IRegistrarLike } from "../interfaces/IRegistrarLike.sol";
 
 /**
  * @title  ERC20 Token contract for wrapping M into a non-rebasing token with claimable yields.
@@ -132,12 +131,11 @@ abstract contract MExtension is IMExtension, ERC20Extended {
         // NOTE: The behavior of `IMTokenLike.transferFrom` is known, so its return can be ignored.
         IMTokenLike(mToken).transferFrom(account, address(this), amount);
 
-        // NOTE: Mints precise amount of M Extension token to `recipient`..
-        //       Option 1: $M transfer from an $M earner to another $M earner (M Extension in earning state) → rounds up → rounds up,
-        //                 0, 1, or XX extra wei may be locked in M Extension compared to the minted amount of M Extension token.
-        //
-        //       Option 2: $M transfer from an $M non-earner to an $M earner (M Extension in earning state) → precise $M transfer → rounds down,
-        //                 0, -1, or -XX wei may be deducted from $M locked in M Extension compared to the minted amount of M Extension token.
+        // NOTE: Mints precise amount of $M Extension token to `recipient`.
+        //       Option 1: $M transfer from an $M earner to another $M earner ($M Extension in earning state): rounds up → rounds up,
+        //                 0, 1, or XX extra wei may be locked in M Extension compared to the minted amount of $M Extension token.
+        //       Option 2: $M transfer from an $M non-earner to an $M earner ($M Extension in earning state): precise $M transfer → rounds down,
+        //                 0, -1, or -XX wei may be locked in $M Extension compared to the minted amount of $M Extension token.
         _mint(recipient, amount);
     }
 
@@ -161,11 +159,10 @@ abstract contract MExtension is IMExtension, ERC20Extended {
         _burn(account, amount);
 
         // NOTE: The behavior of `IMTokenLike.transfer` is known, so its return can be ignored.
-
-        // NOTE: Computes the actual decrease in the $M balance of the M Extension contract.
-        //       Option 1: $M transfer from an $M earner (M Extension in earning state) to another $M earner → rounds up.
-        //       Option 2: $M transfer from an $M earner (M Extension in earning state) to an $M non-earner → precise $M transfer.
-        //       In both cases, 0, 1, or XX extra wei may be deducted from the M Extension contract's $M balance compared to the burned amount of M Extension token.
+        // NOTE: Computes the actual decrease in the $M balance of the $M Extension contract.
+        //       Option 1: $M transfer from an $M earner ($M Extension in earning state) to another $M earner: round up → rounds up.
+        //       Option 2: $M transfer from an $M earner ($M Extension in earning state) to an $M non-earner: round up → precise $M transfer.
+        //       In both cases, 0, 1, or XX extra wei may be deducted from the $M Extension contract's $M balance compared to the burned amount of $M Extension token.
         IMTokenLike(mToken).transfer(recipient, amount);
     }
 

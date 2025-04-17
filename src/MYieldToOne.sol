@@ -7,9 +7,9 @@ import { IERC20 } from "../lib/common/src/interfaces/IERC20.sol";
 import { IMTokenLike } from "./interfaces/IMTokenLike.sol";
 import { IMYieldToOne } from "./interfaces/IMYieldToOne.sol";
 
-import { MExtension } from "./MExtension.sol";
+import { Blacklistable } from "./abstract/components/Blacklistable.sol";
 
-import { Blacklistable } from "./Blacklistable.sol";
+import { MExtension } from "./abstract/MExtension.sol";
 
 /**
  * @title  ERC20 Token contract for wrapping M into a non-rebasing token with claimable yields.
@@ -55,6 +55,7 @@ contract MYieldToOne is IMYieldToOne, MExtension, Blacklistable {
     ) MExtension(name_, symbol_, mToken_, registrar_) Blacklistable(blacklistManager_) {
         if (yieldRecipientManager_ == address(0)) revert ZeroYieldRecipientManager();
         if (defaultAdmin_ == address(0)) revert ZeroDefaultAdmin();
+
         _setYieldRecipient(yieldRecipient_);
 
         _grantRole(DEFAULT_ADMIN_ROLE, defaultAdmin_);
@@ -93,6 +94,19 @@ contract MYieldToOne is IMYieldToOne, MExtension, Blacklistable {
     }
 
     /* ============ Internal Interactive Functions ============ */
+
+    /**
+     * @dev Approve `spender` to spend `amount` of tokens from `account`.
+     * @param account The address approving the allowance.
+     * @param spender The address approved to spend the tokens.
+     * @param amount  The amount of tokens being approved for spending.
+     */
+    function _approve(address account, address spender, uint256 amount) internal override {
+        _revertIfBlacklisted(account);
+        _revertIfBlacklisted(spender);
+
+        super._approve(account, spender, amount);
+    }
 
     /**
      * @dev    Hooks called before wrapping M into M Extension token.
@@ -171,19 +185,6 @@ contract MYieldToOne is IMYieldToOne, MExtension, Blacklistable {
             balanceOf[sender] -= amount;
             balanceOf[recipient] += amount;
         }
-    }
-
-    /**
-     * @dev Approve `spender` to spend `amount` of tokens from `account`.
-     * @param account The address approving the allowance.
-     * @param spender The address approved to spend the tokens.
-     * @param amount  The amount of tokens being approved for spending.
-     */
-    function _approve(address account, address spender, uint256 amount) internal override {
-        _revertIfBlacklisted(account);
-        _revertIfBlacklisted(spender);
-
-        super._approve(account, spender, amount);
     }
 
     /**

@@ -2,9 +2,9 @@
 
 pragma solidity 0.8.26;
 
-import { AccessControl } from "../../lib/openzeppelin-contracts/contracts/access/AccessControl.sol";
+import { AccessControl } from "../../../lib/openzeppelin-contracts/contracts/access/AccessControl.sol";
 
-import { IBlacklistable } from "./interfaces/IBlacklistable.sol";
+import { IBlacklistable } from "../../interfaces/IBlacklistable.sol";
 
 /**
  * @title Blacklistable
@@ -45,11 +45,14 @@ abstract contract Blacklistable is IBlacklistable, AccessControl {
 
     /// @inheritdoc IBlacklistable
     function unblacklist(address account) external onlyRole(BLACKLIST_MANAGER_ROLE) {
-        if (!isBlacklisted[account]) revert AccountNotBlacklisted(account);
+        _unblacklist(account);
+    }
 
-        isBlacklisted[account] = false;
-
-        emit Unblacklisted(account, block.timestamp);
+    /// @inheritdoc IBlacklistable
+    function unblacklistAccounts(address[] calldata accounts) external onlyRole(BLACKLIST_MANAGER_ROLE) {
+        for (uint256 i; i < accounts.length; ++i) {
+            _unblacklist(accounts[i]);
+        }
     }
 
     /* ============ Internal Interactive Functions ============ */
@@ -64,6 +67,19 @@ abstract contract Blacklistable is IBlacklistable, AccessControl {
         isBlacklisted[account] = true;
 
         emit Blacklisted(account, block.timestamp);
+    }
+
+    /**
+     * @notice Internal function that unblacklists an account.
+     * @param account The account to unblacklist.
+     */
+
+    function _unblacklist(address account) internal {
+        if (!isBlacklisted[account]) revert AccountNotBlacklisted(account);
+
+        isBlacklisted[account] = false;
+
+        emit Unblacklisted(account, block.timestamp);
     }
 
     /* ============ Internal View/Pure Functions ============ */

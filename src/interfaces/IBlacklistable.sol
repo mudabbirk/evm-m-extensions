@@ -66,6 +66,14 @@ interface IBlacklistable {
      */
     function unblacklist(address account) external;
 
+    /**
+     * @notice Unblacklists multiple accounts.
+     * @dev MUST only be callable by the BLACKLIST_MANAGER_ROLE.
+     * @dev SHOULD revert if any of the accounts are already unblacklisted.
+     * @param accounts The list of addresses to unblacklist.
+     */
+    function unblacklistAccounts(address[] calldata accounts) external;
+
     /* ============ View/Pure Functions ============ */
 
     /// @notice The role that can manage the blacklist.
