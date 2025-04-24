@@ -18,12 +18,6 @@ interface IMExtension is IERC20Extended {
      */
     event EarningEnabled(uint128 index);
 
-    /**
-     * @notice Emitted when M extension earning is disabled.
-     * @param  index The M extension index at the moment earning is disabled.
-     */
-    event EarningDisabled(uint128 index);
-
     /* ============ Custom Errors ============ */
 
     /// @notice Emitted when performing an operation that is not allowed when earning is disabled.
