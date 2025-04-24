@@ -32,12 +32,6 @@ interface IMExtension is IERC20Extended {
     /// @notice Emitted when performing an operation that is not allowed when earning is enabled.
     error EarningIsEnabled();
 
-    /// @notice Emitted when calling `stopEarning` for an account approved as earner by the TTG Registrar.
-    error IsApprovedEarner(address account);
-
-    /// @notice Emitted when calling `startEarning` for an account not approved as earner by the TTG Registrar.
-    error NotApprovedEarner(address account);
-
     /// @notice Emitted in constructor if M Token is 0x0.
     error ZeroMToken();
 

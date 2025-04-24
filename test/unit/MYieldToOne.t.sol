@@ -513,10 +513,6 @@ contract MYieldToOneUnitTests is BaseUnitTest {
     }
 
     /* ============ enableEarning ============ */
-    function test_enableEarning_notApprovedEarner() external {
-        vm.expectRevert(abi.encodeWithSelector(IMExtension.NotApprovedEarner.selector, address(mYieldToOne)));
-        mYieldToOne.enableEarning();
-    }
 
     function test_enableEarning_earningEnabled() external {
         mToken.setCurrentIndex(1_100000000000);
@@ -544,13 +540,6 @@ contract MYieldToOneUnitTests is BaseUnitTest {
     /* ============ disableEarning ============ */
     function test_disableEarning_earningIsDisabled() external {
         vm.expectRevert(IMExtension.EarningIsDisabled.selector);
-        mYieldToOne.disableEarning();
-    }
-
-    function test_disableEarning_approvedEarner() external {
-        registrar.setListContains(EARNERS_LIST, address(mYieldToOne), true);
-
-        vm.expectRevert(abi.encodeWithSelector(IMExtension.IsApprovedEarner.selector, address(mYieldToOne)));
         mYieldToOne.disableEarning();
     }
 

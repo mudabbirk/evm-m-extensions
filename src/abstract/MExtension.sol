@@ -6,7 +6,6 @@ import { ERC20Extended } from "../../lib/common/src/ERC20Extended.sol";
 
 import { IMTokenLike } from "../interfaces/IMTokenLike.sol";
 import { IMExtension } from "../interfaces/IMExtension.sol";
-import { IRegistrarLike } from "../interfaces/IRegistrarLike.sol";
 
 /**
  * @title  ERC20 Token contract for wrapping M into a non-rebasing token with claimable yields.
@@ -84,7 +83,6 @@ abstract contract MExtension is IMExtension, ERC20Extended {
 
     /// @inheritdoc IMExtension
     function enableEarning() external {
-        if (!_isThisApprovedEarner()) revert NotApprovedEarner(address(this));
         if (isEarningEnabled()) revert EarningIsEnabled();
 
         emit EarningEnabled(_currentMIndex());
@@ -94,12 +92,11 @@ abstract contract MExtension is IMExtension, ERC20Extended {
 
     /// @inheritdoc IMExtension
     function disableEarning() external {
-        if (_isThisApprovedEarner()) revert IsApprovedEarner(address(this));
         if (!isEarningEnabled()) revert EarningIsDisabled();
 
         emit EarningDisabled(_currentMIndex());
 
-        IMTokenLike(mToken).stopEarning();
+        IMTokenLike(mToken).stopEarning(address(this));
     }
 
     /* ============ View/Pure Functions ============ */
@@ -185,12 +182,5 @@ abstract contract MExtension is IMExtension, ERC20Extended {
     /// @dev Returns the current index of the M Token.
     function _currentMIndex() internal view returns (uint128) {
         return IMTokenLike(mToken).currentIndex();
-    }
-
-    /// @dev Returns whether this contract is a Registrar-approved earner.
-    function _isThisApprovedEarner() internal view returns (bool) {
-        return
-            IRegistrarLike(registrar).get(_EARNERS_LIST_IGNORED) != bytes32(0) ||
-            IRegistrarLike(registrar).listContains(_EARNERS_LIST, address(this));
     }
 }

@@ -2,6 +2,8 @@
 
 pragma solidity 0.8.26;
 
+import { IMTokenLike } from "../../src/interfaces/IMTokenLike.sol";
+
 import { MYieldToOne } from "../../src/MYieldToOne.sol";
 
 import { TestBase } from "./TestBase.sol";
@@ -40,9 +42,6 @@ contract MYieldToOneIntegrationTests is TestBase {
     function test_yieldAccumulationAndClaim() external {
         uint256 amount = 10e6;
 
-        // set fixed timestamp
-        vm.warp(1743936851);
-
         // Enable earning for the contract
         _addToList(_EARNERS_LIST, address(_mYieldToOne));
         _mYieldToOne.enableEarning();
@@ -57,15 +56,13 @@ contract MYieldToOneIntegrationTests is TestBase {
 
         // Check balances of MYieldToOne and Alice after wrapping
         assertEq(_mYieldToOne.balanceOf(_alice), amount); // user receives exact amount
-
-        // TODO: why is rounding error so high?
-        assertEq(_mToken.balanceOf(address(_mYieldToOne)), amount - 186);
+        assertApproxEqAbs(_mToken.balanceOf(address(_mYieldToOne)), amount, 2); // rounds down
 
         // Fast forward 10 days in the future to generate yield
         vm.warp(vm.getBlockTimestamp() + 10 days);
 
         // yield accrual
-        assertEq(_mYieldToOne.yield(), 11190);
+        assertApproxEqAbs(_mYieldToOne.yield(), 11375, 1); // may round up
 
         // transfers do not affect yield
         vm.prank(_alice);
@@ -75,18 +72,18 @@ contract MYieldToOneIntegrationTests is TestBase {
         assertEq(_mYieldToOne.balanceOf(_alice), amount / 2);
 
         // yield accrual
-        assertEq(_mYieldToOne.yield(), 11190);
+        assertApproxEqAbs(_mYieldToOne.yield(), 11375, 1);
 
         // unwraps
         _unwrap(_alice, _alice, amount / 2);
 
         // yield stays basically the same (except rounding up error on transfer)
-        assertEq(_mYieldToOne.yield(), 11022);
+        assertApproxEqAbs(_mYieldToOne.yield(), 11375, 2);
 
         _unwrap(_bob, _bob, amount / 2);
 
         // yield stays basically the same (except rounding up error on transfer)
-        assertApproxEqAbs(_mYieldToOne.yield(), 11022, 186);
+        assertApproxEqAbs(_mYieldToOne.yield(), 11375, 1);
 
         assertEq(_mYieldToOne.balanceOf(_bob), 0);
         assertEq(_mYieldToOne.balanceOf(_alice), 0);
@@ -98,13 +95,14 @@ contract MYieldToOneIntegrationTests is TestBase {
         // claim yield
         _mYieldToOne.claimYield();
 
-        assertApproxEqAbs(_mToken.balanceOf(_yieldRecipient), 11022, 186);
+        assertApproxEqAbs(_mToken.balanceOf(_yieldRecipient), 11375, 1);
         assertEq(_mYieldToOne.yield(), 0);
         assertEq(_mToken.balanceOf(address(_mYieldToOne)), 0);
         assertEq(_mYieldToOne.totalSupply(), 0);
 
         // wrap from earner account
         _addToList(_EARNERS_LIST, _bob);
+
         vm.prank(_bob);
         _mToken.startEarning();
 
@@ -112,8 +110,27 @@ contract MYieldToOneIntegrationTests is TestBase {
 
         // Check balances of MYieldToOne and Bob after wrapping
         assertEq(_mYieldToOne.balanceOf(_bob), amount);
-        assertEq(_mToken.balanceOf(address(_mYieldToOne)), 10000146);
+        assertEq(_mToken.balanceOf(address(_mYieldToOne)), amount);
     }
+
+    /* ============ enableEarning ============ */
+
+    function test_enableEarning_notApprovedEarner() external {
+        vm.expectRevert(abi.encodeWithSelector(IMTokenLike.NotApprovedEarner.selector));
+        _mYieldToOne.enableEarning();
+    }
+
+    /* ============ disableEarning ============ */
+
+    function test_disableEarning_approvedEarner() external {
+        _addToList(_EARNERS_LIST, address(_mYieldToOne));
+        _mYieldToOne.enableEarning();
+
+        vm.expectRevert(abi.encodeWithSelector(IMTokenLike.IsApprovedEarner.selector));
+        _mYieldToOne.disableEarning();
+    }
+
+    /* ============ _wrap ============ */
 
     function test_wrapWithPermits() external {
         assertEq(_mToken.balanceOf(_alice), 10e6);
