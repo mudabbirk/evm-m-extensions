@@ -90,13 +90,6 @@ interface IMTokenLike {
     /// @notice The current index that would be written to storage if `updateIndex` is called.
     function currentIndex() external view returns (uint128);
 
-    /**
-     * @notice The principal of an earner M token balance.
-     * @param  account The account to get the principal balance of.
-     * @return The principal balance of the account.
-     */
-    function principalBalanceOf(address account) external view returns (uint240);
-
     /// @notice Returns the EIP712 domain separator used in the encoding of a signed digest.
     function DOMAIN_SEPARATOR() external view returns (bytes32);
 
