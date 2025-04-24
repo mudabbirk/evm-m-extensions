@@ -84,7 +84,7 @@ interface IMExtension is IERC20Extended {
      * @param  deadline  The last timestamp where the signature is still valid.
      * @param  signature An arbitrary signature (EIP-712).
      */
-    function wrapWithPermit(address recipient, uint256 amount, uint256 deadline, bytes memory signature) external;
+    function wrapWithPermit(address recipient, uint256 amount, uint256 deadline, bytes calldata signature) external;
 
     /**
      * @notice Unwraps `amount` extension token from the caller into M for `recipient`.
