@@ -575,9 +575,6 @@ contract MYieldToOneUnitTests is BaseUnitTest {
 
         registrar.setListContains(EARNERS_LIST, address(mYieldToOne), false);
 
-        vm.expectEmit();
-        emit IMExtension.EarningDisabled(1_200000000000);
-
         mYieldToOne.disableEarning();
 
         assertEq(mYieldToOne.isEarningEnabled(), false);

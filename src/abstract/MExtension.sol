@@ -97,8 +97,6 @@ abstract contract MExtension is IMExtension, ERC20Extended {
         if (_isThisApprovedEarner()) revert IsApprovedEarner(address(this));
         if (!isEarningEnabled()) revert EarningIsDisabled();
 
-        emit EarningDisabled(_currentMIndex());
-
         IMTokenLike(mToken).stopEarning();
     }
 
