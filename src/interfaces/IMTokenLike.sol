@@ -7,6 +7,14 @@ pragma solidity 0.8.26;
  * @author M^0 Labs
  */
 interface IMTokenLike {
+    /* ============ Custom Errors ============ */
+
+    /// @notice Emitted when calling `stopEarning` for an account approved as earner by TTG.
+    error IsApprovedEarner();
+
+    /// @notice Emitted when calling `startEarning` for an account not approved as earner by TTG.
+    error NotApprovedEarner();
+
     /* ============ Interactive Functions ============ */
 
     /**
@@ -68,8 +76,12 @@ interface IMTokenLike {
     /// @notice Starts earning for caller if allowed by the Registrar.
     function startEarning() external;
 
-    /// @notice Stops earning for caller.
-    function stopEarning() external;
+    /**
+     * @notice Stops earning for `account`.
+     * @dev    MUST revert if `account` is an approved earner in TTG Registrar.
+     * @param  account The account to stop earning for.
+     */
+    function stopEarning(address account) external;
 
     /* ============ View/Pure Functions ============ */
 

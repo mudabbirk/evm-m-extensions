@@ -50,8 +50,8 @@ contract MockM {
         isEarning[msg.sender] = true;
     }
 
-    function stopEarning() external {
-        isEarning[msg.sender] = false;
+    function stopEarning(address account) external {
+        isEarning[account] = false;
     }
 }
 
