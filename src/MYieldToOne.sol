@@ -181,7 +181,9 @@ contract MYieldToOne is IMYieldToOne, MExtension, Blacklistable {
 
         if (amount == 0) return;
 
-        // NOTE: Can be `unchecked` because `_transfer` already checked for insufficient sender balance.
+        if (balanceOf[sender] < amount) revert InsufficientBalance(sender, balanceOf[sender], amount);
+
+        // NOTE: Can be `unchecked` because we check for insufficient sender balance above.
         unchecked {
             balanceOf[sender] -= amount;
             balanceOf[recipient] += amount;
