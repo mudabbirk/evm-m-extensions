@@ -73,7 +73,6 @@ abstract contract Blacklistable is IBlacklistable, AccessControl {
      * @notice Internal function that unblacklists an account.
      * @param account The account to unblacklist.
      */
-
     function _unblacklist(address account) internal {
         if (!isBlacklisted[account]) revert AccountNotBlacklisted(account);
 
