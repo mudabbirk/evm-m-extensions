@@ -29,9 +29,6 @@ interface IMExtension is IERC20Extended {
     /// @notice Emitted in constructor if M Token is 0x0.
     error ZeroMToken();
 
-    /// @notice Emitted in constructor if TTG Registrar is 0x0.
-    error ZeroRegistrar();
-
     /* ============ Interactive Functions ============ */
 
     /// @notice Enables earning of extension token if allowed by the TTG Registrar and if it has never been done.
@@ -85,9 +82,6 @@ interface IMExtension is IERC20Extended {
 
     /// @notice The address of the M Token contract.
     function mToken() external view returns (address);
-
-    /// @notice The address of the TTG Registrar contract.
-    function registrar() external view returns (address);
 
     /// @notice Whether M extension earning is enabled.
     function isEarningEnabled() external view returns (bool);

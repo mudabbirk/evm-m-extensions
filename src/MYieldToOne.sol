@@ -34,32 +34,30 @@ contract MYieldToOne is IMYieldToOne, MExtension, Blacklistable {
 
     /**
      * @dev   Constructs the M extension token with yield claimable by a single recipient.
-     * @param name_                  The name of the token (e.g. "M Yield to One").
-     * @param symbol_                The symbol of the token (e.g. "MYO").
-     * @param mToken_                The address of an M Token.
-     * @param registrar_             The address of a registrar.
+     * @param name                   The name of the token (e.g. "M Yield to One").
+     * @param symbol                 The symbol of the token (e.g. "MYO").
+     * @param mToken                 The address of the M Token.
      * @param yieldRecipient_        The address of an yield destination.
-     * @param defaultAdmin_          The address of a default admin.
-     * @param blacklistManager_      The address of a blacklist manager.
-     * @param yieldRecipientManager_ The address of a recipient setter.
+     * @param defaultAdmin           The address of a default admin.
+     * @param blacklistManager       The address of a blacklist manager.
+     * @param yieldRecipientManager  The address of a yield recipient setter.
      */
     constructor(
-        string memory name_,
-        string memory symbol_,
-        address mToken_,
-        address registrar_,
+        string memory name,
+        string memory symbol,
+        address mToken,
         address yieldRecipient_,
-        address defaultAdmin_,
-        address blacklistManager_,
-        address yieldRecipientManager_
-    ) MExtension(name_, symbol_, mToken_, registrar_) Blacklistable(blacklistManager_) {
-        if (yieldRecipientManager_ == address(0)) revert ZeroYieldRecipientManager();
-        if (defaultAdmin_ == address(0)) revert ZeroDefaultAdmin();
+        address defaultAdmin,
+        address blacklistManager,
+        address yieldRecipientManager
+    ) MExtension(name, symbol, mToken) Blacklistable(blacklistManager) {
+        if (yieldRecipientManager == address(0)) revert ZeroYieldRecipientManager();
+        if (defaultAdmin == address(0)) revert ZeroDefaultAdmin();
 
         _setYieldRecipient(yieldRecipient_);
 
-        _grantRole(DEFAULT_ADMIN_ROLE, defaultAdmin_);
-        _grantRole(YIELD_RECIPIENT_MANAGER_ROLE, yieldRecipientManager_);
+        _grantRole(DEFAULT_ADMIN_ROLE, defaultAdmin);
+        _grantRole(YIELD_RECIPIENT_MANAGER_ROLE, yieldRecipientManager);
     }
 
     /* ============ Interactive Functions ============ */
@@ -181,11 +179,13 @@ contract MYieldToOne is IMYieldToOne, MExtension, Blacklistable {
 
         if (amount == 0) return;
 
-        if (balanceOf[sender] < amount) revert InsufficientBalance(sender, balanceOf[sender], amount);
+        uint256 balance_ = balanceOf[sender];
+
+        if (balance_ < amount) revert InsufficientBalance(sender, balance_, amount);
 
         // NOTE: Can be `unchecked` because we check for insufficient sender balance above.
         unchecked {
-            balanceOf[sender] -= amount;
+            balanceOf[sender] = balance_ - amount;
             balanceOf[recipient] += amount;
         }
     }

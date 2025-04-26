@@ -38,7 +38,6 @@ contract MYieldToOneUnitTests is BaseUnitTest {
             NAME,
             SYMBOL,
             address(mToken),
-            address(registrar),
             yieldRecipient,
             admin,
             blacklistManager,
@@ -53,7 +52,6 @@ contract MYieldToOneUnitTests is BaseUnitTest {
         assertEq(mYieldToOne.symbol(), SYMBOL);
         assertEq(mYieldToOne.decimals(), 6);
         assertEq(mYieldToOne.mToken(), address(mToken));
-        assertEq(mYieldToOne.registrar(), address(registrar));
         assertEq(mYieldToOne.yieldRecipient(), yieldRecipient);
 
         assertTrue(IAccessControl(address(mYieldToOne)).hasRole(DEFAULT_ADMIN_ROLE, admin));
@@ -67,21 +65,6 @@ contract MYieldToOneUnitTests is BaseUnitTest {
             NAME,
             SYMBOL,
             address(0),
-            address(registrar),
-            address(yieldRecipient),
-            admin,
-            blacklistManager,
-            yieldRecipientManager
-        );
-    }
-
-    function test_constructor_zeroRegistrar() external {
-        vm.expectRevert(IMExtension.ZeroRegistrar.selector);
-        new MYieldToOne(
-            NAME,
-            SYMBOL,
-            address(mToken),
-            address(0),
             address(yieldRecipient),
             admin,
             blacklistManager,
@@ -91,16 +74,7 @@ contract MYieldToOneUnitTests is BaseUnitTest {
 
     function test_constructor_zeroYieldRecipient() external {
         vm.expectRevert(IMYieldToOne.ZeroYieldRecipient.selector);
-        new MYieldToOne(
-            NAME,
-            SYMBOL,
-            address(mToken),
-            address(registrar),
-            address(0),
-            admin,
-            blacklistManager,
-            yieldRecipientManager
-        );
+        new MYieldToOne(NAME, SYMBOL, address(mToken), address(0), admin, blacklistManager, yieldRecipientManager);
     }
 
     function test_constructor_zeroDefaultAdmin() external {
@@ -109,7 +83,6 @@ contract MYieldToOneUnitTests is BaseUnitTest {
             NAME,
             SYMBOL,
             address(mToken),
-            address(registrar),
             address(yieldRecipient),
             address(0),
             blacklistManager,
@@ -123,7 +96,6 @@ contract MYieldToOneUnitTests is BaseUnitTest {
             NAME,
             SYMBOL,
             address(mToken),
-            address(registrar),
             address(yieldRecipient),
             admin,
             address(0),
@@ -133,16 +105,7 @@ contract MYieldToOneUnitTests is BaseUnitTest {
 
     function test_constructor_zeroYieldRecipientManager() external {
         vm.expectRevert(IMYieldToOne.ZeroYieldRecipientManager.selector);
-        new MYieldToOne(
-            NAME,
-            SYMBOL,
-            address(mToken),
-            address(registrar),
-            address(yieldRecipient),
-            admin,
-            blacklistManager,
-            address(0)
-        );
+        new MYieldToOne(NAME, SYMBOL, address(mToken), address(yieldRecipient), admin, blacklistManager, address(0));
     }
 
     /* ============ _approve ============ */

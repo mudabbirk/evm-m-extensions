@@ -17,35 +17,16 @@ abstract contract MExtension is IMExtension, ERC20Extended {
     /// @inheritdoc IMExtension
     address public immutable mToken;
 
-    /// @inheritdoc IMExtension
-    address public immutable registrar;
-
-    /// @dev Registrar key holding value of whether the earners list can be ignored or not.
-    bytes32 internal constant _EARNERS_LIST_IGNORED = "earners_list_ignored";
-
-    /// @dev Registrar key of earners list.
-    bytes32 internal constant _EARNERS_LIST = "earners";
-
-    /// @notice The scaling of indexes for exponent math.
-    uint56 internal constant _EXP_SCALED_ONE = 1e12;
-
     /* ============ Constructor ============ */
 
     /**
      * @dev   Constructs the generic M extension token.
      * @param name               The name of the token (e.g. "HALO USD").
      * @param symbol             The symbol of the token (e.g. "HUSD").
-     * @param mToken_            The address of an M Token.
-     * @param registrar_         The address of a registrar.
+     * @param mToken_            The address of the M Token.
      */
-    constructor(
-        string memory name,
-        string memory symbol,
-        address mToken_,
-        address registrar_
-    ) ERC20Extended(name, symbol, 6) {
+    constructor(string memory name, string memory symbol, address mToken_) ERC20Extended(name, symbol, 6) {
         if ((mToken = mToken_) == address(0)) revert ZeroMToken();
-        if ((registrar = registrar_) == address(0)) revert ZeroRegistrar();
     }
 
     /* ============ Interactive Functions ============ */
