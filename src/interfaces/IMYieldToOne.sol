@@ -62,7 +62,7 @@ interface IMYieldToOne {
     /// @notice The role that can manage the yield recipient.
     function YIELD_RECIPIENT_MANAGER_ROLE() external view returns (bytes32);
 
-    /// @notice The address of the M Token contract.
+    /// @notice The amount of accrued yield.
     function yield() external view returns (uint256);
 
     /// @notice The address of the yield recipient.

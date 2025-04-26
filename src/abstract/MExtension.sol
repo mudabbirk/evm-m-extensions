@@ -70,7 +70,7 @@ abstract contract MExtension is IMExtension, ERC20Extended {
     }
 
     /// @inheritdoc IMExtension
-    function wrapWithPermit(address recipient, uint256 amount, uint256 deadline, bytes memory signature) external {
+    function wrapWithPermit(address recipient, uint256 amount, uint256 deadline, bytes calldata signature) external {
         try IMTokenLike(mToken).permit(msg.sender, address(this), amount, deadline, signature) {} catch {}
 
         _wrap(msg.sender, recipient, amount);
@@ -93,8 +93,6 @@ abstract contract MExtension is IMExtension, ERC20Extended {
     /// @inheritdoc IMExtension
     function disableEarning() external {
         if (!isEarningEnabled()) revert EarningIsDisabled();
-
-        emit EarningDisabled(_currentMIndex());
 
         IMTokenLike(mToken).stopEarning(address(this));
     }

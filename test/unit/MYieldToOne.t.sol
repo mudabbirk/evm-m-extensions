@@ -385,6 +385,18 @@ contract MYieldToOneUnitTests is BaseUnitTest {
     }
 
     /* ============ _transfer ============ */
+    function test_transfer_insufficientBalance() external {
+        uint256 amount = 1_000e6;
+        mToken.setBalanceOf(alice, amount);
+
+        vm.prank(alice);
+        mYieldToOne.wrap(alice, amount);
+
+        vm.expectRevert(abi.encodeWithSelector(IMYieldToOne.InsufficientBalance.selector, alice, amount, amount + 1));
+
+        vm.prank(alice);
+        mYieldToOne.transfer(bob, amount + 1);
+    }
 
     function test_transfer_blacklistedSender() external {
         uint256 amount = 1_000e6;
@@ -551,9 +563,6 @@ contract MYieldToOneUnitTests is BaseUnitTest {
         mToken.setCurrentIndex(1_200000000000);
 
         registrar.setListContains(EARNERS_LIST, address(mYieldToOne), false);
-
-        vm.expectEmit();
-        emit IMExtension.EarningDisabled(1_200000000000);
 
         mYieldToOne.disableEarning();
 
