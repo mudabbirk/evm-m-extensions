@@ -439,6 +439,35 @@ contract MYieldToOneUnitTests is BaseUnitTest {
 
         vm.prank(alice);
         mYieldToOne.transfer(bob, amount);
+
+        assertEq(mYieldToOne.balanceOf(alice), 0);
+        assertEq(mYieldToOne.balanceOf(bob), amount);
+    }
+
+    function testFuzz_transfer(uint256 supply, uint256 aliceBalance, uint256 transferAmount) external {
+        supply = bound(supply, 1, type(uint112).max);
+        aliceBalance = bound(aliceBalance, 1, supply);
+        transferAmount = bound(transferAmount, 1, aliceBalance);
+        uint256 bobBalance = supply - aliceBalance;
+
+        if (bobBalance == 0) return;
+
+        mToken.setBalanceOf(alice, aliceBalance);
+        mToken.setBalanceOf(bob, bobBalance);
+
+        vm.prank(alice);
+        mYieldToOne.wrap(alice, aliceBalance);
+
+        if (bobBalance > 0) {
+            vm.prank(bob);
+            mYieldToOne.wrap(bob, bobBalance);
+        }
+
+        vm.prank(alice);
+        mYieldToOne.transfer(bob, transferAmount);
+
+        assertEq(mYieldToOne.balanceOf(alice), aliceBalance - transferAmount);
+        assertEq(mYieldToOne.balanceOf(bob), bobBalance + transferAmount);
     }
 
     /* ============ yield ============ */
