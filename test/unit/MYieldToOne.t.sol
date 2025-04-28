@@ -38,7 +38,6 @@ contract MYieldToOneUnitTests is BaseUnitTest {
             NAME,
             SYMBOL,
             address(mToken),
-            address(registrar),
             yieldRecipient,
             admin,
             blacklistManager,
@@ -53,7 +52,6 @@ contract MYieldToOneUnitTests is BaseUnitTest {
         assertEq(mYieldToOne.symbol(), SYMBOL);
         assertEq(mYieldToOne.decimals(), 6);
         assertEq(mYieldToOne.mToken(), address(mToken));
-        assertEq(mYieldToOne.registrar(), address(registrar));
         assertEq(mYieldToOne.yieldRecipient(), yieldRecipient);
 
         assertTrue(IAccessControl(address(mYieldToOne)).hasRole(DEFAULT_ADMIN_ROLE, admin));
@@ -67,21 +65,6 @@ contract MYieldToOneUnitTests is BaseUnitTest {
             NAME,
             SYMBOL,
             address(0),
-            address(registrar),
-            address(yieldRecipient),
-            admin,
-            blacklistManager,
-            yieldRecipientManager
-        );
-    }
-
-    function test_constructor_zeroRegistrar() external {
-        vm.expectRevert(IMExtension.ZeroRegistrar.selector);
-        new MYieldToOne(
-            NAME,
-            SYMBOL,
-            address(mToken),
-            address(0),
             address(yieldRecipient),
             admin,
             blacklistManager,
@@ -91,16 +74,7 @@ contract MYieldToOneUnitTests is BaseUnitTest {
 
     function test_constructor_zeroYieldRecipient() external {
         vm.expectRevert(IMYieldToOne.ZeroYieldRecipient.selector);
-        new MYieldToOne(
-            NAME,
-            SYMBOL,
-            address(mToken),
-            address(registrar),
-            address(0),
-            admin,
-            blacklistManager,
-            yieldRecipientManager
-        );
+        new MYieldToOne(NAME, SYMBOL, address(mToken), address(0), admin, blacklistManager, yieldRecipientManager);
     }
 
     function test_constructor_zeroDefaultAdmin() external {
@@ -109,7 +83,6 @@ contract MYieldToOneUnitTests is BaseUnitTest {
             NAME,
             SYMBOL,
             address(mToken),
-            address(registrar),
             address(yieldRecipient),
             address(0),
             blacklistManager,
@@ -123,7 +96,6 @@ contract MYieldToOneUnitTests is BaseUnitTest {
             NAME,
             SYMBOL,
             address(mToken),
-            address(registrar),
             address(yieldRecipient),
             admin,
             address(0),
@@ -133,16 +105,7 @@ contract MYieldToOneUnitTests is BaseUnitTest {
 
     function test_constructor_zeroYieldRecipientManager() external {
         vm.expectRevert(IMYieldToOne.ZeroYieldRecipientManager.selector);
-        new MYieldToOne(
-            NAME,
-            SYMBOL,
-            address(mToken),
-            address(registrar),
-            address(yieldRecipient),
-            admin,
-            blacklistManager,
-            address(0)
-        );
+        new MYieldToOne(NAME, SYMBOL, address(mToken), address(yieldRecipient), admin, blacklistManager, address(0));
     }
 
     /* ============ _approve ============ */
@@ -476,6 +439,35 @@ contract MYieldToOneUnitTests is BaseUnitTest {
 
         vm.prank(alice);
         mYieldToOne.transfer(bob, amount);
+
+        assertEq(mYieldToOne.balanceOf(alice), 0);
+        assertEq(mYieldToOne.balanceOf(bob), amount);
+    }
+
+    function testFuzz_transfer(uint256 supply, uint256 aliceBalance, uint256 transferAmount) external {
+        supply = bound(supply, 1, type(uint112).max);
+        aliceBalance = bound(aliceBalance, 1, supply);
+        transferAmount = bound(transferAmount, 1, aliceBalance);
+        uint256 bobBalance = supply - aliceBalance;
+
+        if (bobBalance == 0) return;
+
+        mToken.setBalanceOf(alice, aliceBalance);
+        mToken.setBalanceOf(bob, bobBalance);
+
+        vm.prank(alice);
+        mYieldToOne.wrap(alice, aliceBalance);
+
+        if (bobBalance > 0) {
+            vm.prank(bob);
+            mYieldToOne.wrap(bob, bobBalance);
+        }
+
+        vm.prank(alice);
+        mYieldToOne.transfer(bob, transferAmount);
+
+        assertEq(mYieldToOne.balanceOf(alice), aliceBalance - transferAmount);
+        assertEq(mYieldToOne.balanceOf(bob), bobBalance + transferAmount);
     }
 
     /* ============ yield ============ */

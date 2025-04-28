@@ -19,7 +19,6 @@ contract MYieldToOneIntegrationTests is TestBase {
             _NAME,
             _SYMBOL,
             address(_mToken),
-            address(_registrar),
             _yieldRecipient,
             _defaultAdmin,
             _blacklistManager,
@@ -35,7 +34,6 @@ contract MYieldToOneIntegrationTests is TestBase {
 
         // Check the initial state of the contract
         assertEq(_mYieldToOne.mToken(), address(_mToken));
-        assertEq(_mYieldToOne.registrar(), address(_registrar));
         assertEq(_mYieldToOne.yieldRecipient(), _yieldRecipient);
     }
 
