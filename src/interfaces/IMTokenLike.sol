@@ -7,6 +7,14 @@ pragma solidity 0.8.26;
  * @author M^0 Labs
  */
 interface IMTokenLike {
+    /* ============ Custom Errors ============ */
+
+    /// @notice Emitted when calling `stopEarning` for an account approved as earner by TTG.
+    error IsApprovedEarner();
+
+    /// @notice Emitted when calling `startEarning` for an account not approved as earner by TTG.
+    error NotApprovedEarner();
+
     /* ============ Interactive Functions ============ */
 
     /**
@@ -68,8 +76,12 @@ interface IMTokenLike {
     /// @notice Starts earning for caller if allowed by the Registrar.
     function startEarning() external;
 
-    /// @notice Stops earning for caller.
-    function stopEarning() external;
+    /**
+     * @notice Stops earning for `account`.
+     * @dev    MUST revert if `account` is an approved earner in TTG Registrar.
+     * @param  account The account to stop earning for.
+     */
+    function stopEarning(address account) external;
 
     /* ============ View/Pure Functions ============ */
 
@@ -89,13 +101,6 @@ interface IMTokenLike {
 
     /// @notice The current index that would be written to storage if `updateIndex` is called.
     function currentIndex() external view returns (uint128);
-
-    /**
-     * @notice The principal of an earner M token balance.
-     * @param  account The account to get the principal balance of.
-     * @return The principal balance of the account.
-     */
-    function principalBalanceOf(address account) external view returns (uint240);
 
     /// @notice Returns the EIP712 domain separator used in the encoding of a signed digest.
     function DOMAIN_SEPARATOR() external view returns (bytes32);

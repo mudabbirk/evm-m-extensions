@@ -2,12 +2,10 @@
 
 pragma solidity 0.8.26;
 
-import { ERC20Extended } from "../lib/common/src/ERC20Extended.sol";
-import { UIntMath } from "../lib/common/src/libs/UIntMath.sol";
+import { ERC20Extended } from "../../lib/common/src/ERC20Extended.sol";
 
-import { IMTokenLike } from "./interfaces/IMTokenLike.sol";
-import { IMExtension } from "./interfaces/IMExtension.sol";
-import { IRegistrarLike } from "./interfaces/IRegistrarLike.sol";
+import { IMTokenLike } from "../interfaces/IMTokenLike.sol";
+import { IMExtension } from "../interfaces/IMExtension.sol";
 
 /**
  * @title  ERC20 Token contract for wrapping M into a non-rebasing token with claimable yields.
@@ -19,35 +17,16 @@ abstract contract MExtension is IMExtension, ERC20Extended {
     /// @inheritdoc IMExtension
     address public immutable mToken;
 
-    /// @inheritdoc IMExtension
-    address public immutable registrar;
-
-    /// @dev Registrar key holding value of whether the earners list can be ignored or not.
-    bytes32 internal constant _EARNERS_LIST_IGNORED = "earners_list_ignored";
-
-    /// @dev Registrar key of earners list.
-    bytes32 internal constant _EARNERS_LIST = "earners";
-
-    /// @notice The scaling of indexes for exponent math.
-    uint56 internal constant _EXP_SCALED_ONE = 1e12;
-
     /* ============ Constructor ============ */
 
     /**
      * @dev   Constructs the generic M extension token.
      * @param name               The name of the token (e.g. "HALO USD").
      * @param symbol             The symbol of the token (e.g. "HUSD").
-     * @param mToken_            The address of an M Token.
-     * @param registrar_         The address of a registrar.
+     * @param mToken_            The address of the M Token.
      */
-    constructor(
-        string memory name,
-        string memory symbol,
-        address mToken_,
-        address registrar_
-    ) ERC20Extended(name, symbol, 6) {
+    constructor(string memory name, string memory symbol, address mToken_) ERC20Extended(name, symbol, 6) {
         if ((mToken = mToken_) == address(0)) revert ZeroMToken();
-        if ((registrar = registrar_) == address(0)) revert ZeroRegistrar();
     }
 
     /* ============ Interactive Functions ============ */
@@ -72,7 +51,7 @@ abstract contract MExtension is IMExtension, ERC20Extended {
     }
 
     /// @inheritdoc IMExtension
-    function wrapWithPermit(address recipient, uint256 amount, uint256 deadline, bytes memory signature) external {
+    function wrapWithPermit(address recipient, uint256 amount, uint256 deadline, bytes calldata signature) external {
         try IMTokenLike(mToken).permit(msg.sender, address(this), amount, deadline, signature) {} catch {}
 
         _wrap(msg.sender, recipient, amount);
@@ -85,7 +64,6 @@ abstract contract MExtension is IMExtension, ERC20Extended {
 
     /// @inheritdoc IMExtension
     function enableEarning() external {
-        if (!_isThisApprovedEarner()) revert NotApprovedEarner(address(this));
         if (isEarningEnabled()) revert EarningIsEnabled();
 
         emit EarningEnabled(_currentMIndex());
@@ -95,12 +73,9 @@ abstract contract MExtension is IMExtension, ERC20Extended {
 
     /// @inheritdoc IMExtension
     function disableEarning() external {
-        if (_isThisApprovedEarner()) revert IsApprovedEarner(address(this));
         if (!isEarningEnabled()) revert EarningIsDisabled();
 
-        emit EarningDisabled(_currentMIndex());
-
-        IMTokenLike(mToken).stopEarning();
+        IMTokenLike(mToken).stopEarning(address(this));
     }
 
     /* ============ View/Pure Functions ============ */
@@ -113,23 +88,40 @@ abstract contract MExtension is IMExtension, ERC20Extended {
     /* ============ Internal Interactive Functions ============ */
 
     /**
+     * @dev    Hooks called before wrapping M into M Extension token.
+     * @param  account   The account from which M is deposited.
+     * @param  recipient The account receiving the minted M Extension token.
+     * @param  amount    The amount of M deposited.
+     */
+    function _beforeWrap(address account, address recipient, uint256 amount) internal virtual {}
+
+    /**
      * @dev    Wraps `amount` M from `account` into M Extension for `recipient`.
      * @param  account   The account from which M is deposited.
      * @param  recipient The account receiving the minted M Extension token.
      * @param  amount    The amount of M deposited.
      */
     function _wrap(address account, address recipient, uint256 amount) internal {
+        _beforeWrap(account, recipient, amount);
+
         // NOTE: The behavior of `IMTokenLike.transferFrom` is known, so its return can be ignored.
         IMTokenLike(mToken).transferFrom(account, address(this), amount);
 
-        // NOTE: Mints precise amount of M Extension token to `recipient`..
-        //       Option 1: $M transfer from an $M earner to another $M earner (M Extension in earning state) → rounds up → rounds up,
-        //                 0, 1, or XX extra wei may be locked in M Extension compared to the minted amount of M Extension token.
-        //
-        //       Option 2: $M transfer from an $M non-earner to an $M earner (M Extension in earning state) → precise $M transfer → rounds down,
-        //                 0, -1, or -XX wei may be deducted from $M locked in M Extension compared to the minted amount of M Extension token.
+        // NOTE: Mints precise amount of $M Extension token to `recipient`.
+        //       Option 1: $M transfer from an $M earner to another $M earner ($M Extension in earning state): rounds up → rounds up,
+        //                 0, 1, or XX extra wei may be locked in M Extension compared to the minted amount of $M Extension token.
+        //       Option 2: $M transfer from an $M non-earner to an $M earner ($M Extension in earning state): precise $M transfer → rounds down,
+        //                 0, -1, or -XX wei may be locked in $M Extension compared to the minted amount of $M Extension token.
         _mint(recipient, amount);
     }
+
+    /**
+     * @dev   Hook called before unwrapping M Extension token.
+     * @param account   The account from which M Extension token is burned.
+     * @param recipient The account receiving the withdrawn M.
+     * @param amount    The amount of M Extension token burned.
+     */
+    function _beforeUnwrap(address account, address recipient, uint256 amount) internal virtual {}
 
     /**
      * @dev    Unwraps `amount` M Extension token from `account_` into M for `recipient`.
@@ -138,14 +130,15 @@ abstract contract MExtension is IMExtension, ERC20Extended {
      * @param  amount    The amount of M Extension token burned.
      */
     function _unwrap(address account, address recipient, uint256 amount) internal {
+        _beforeUnwrap(account, recipient, amount);
+
         _burn(account, amount);
 
         // NOTE: The behavior of `IMTokenLike.transfer` is known, so its return can be ignored.
-
-        // NOTE: Computes the actual decrease in the $M balance of the M Extension contract.
-        //       Option 1: $M transfer from an $M earner (M Extension in earning state) to another $M earner → rounds up.
-        //       Option 2: $M transfer from an $M earner (M Extension in earning state) to an $M non-earner → precise $M transfer.
-        //       In both cases, 0, 1, or XX extra wei may be deducted from the M Extension contract's $M balance compared to the burned amount of M Extension token.
+        // NOTE: Computes the actual decrease in the $M balance of the $M Extension contract.
+        //       Option 1: $M transfer from an $M earner ($M Extension in earning state) to another $M earner: round up → rounds up.
+        //       Option 2: $M transfer from an $M earner ($M Extension in earning state) to an $M non-earner: round up → precise $M transfer.
+        //       In both cases, 0, 1, or XX extra wei may be deducted from the $M Extension contract's $M balance compared to the burned amount of $M Extension token.
         IMTokenLike(mToken).transfer(recipient, amount);
     }
 
@@ -168,12 +161,5 @@ abstract contract MExtension is IMExtension, ERC20Extended {
     /// @dev Returns the current index of the M Token.
     function _currentMIndex() internal view returns (uint128) {
         return IMTokenLike(mToken).currentIndex();
-    }
-
-    /// @dev Returns whether this contract is a Registrar-approved earner.
-    function _isThisApprovedEarner() internal view returns (bool) {
-        return
-            IRegistrarLike(registrar).get(_EARNERS_LIST_IGNORED) != bytes32(0) ||
-            IRegistrarLike(registrar).listContains(_EARNERS_LIST, address(this));
     }
 }

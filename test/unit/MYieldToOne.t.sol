@@ -2,330 +2,605 @@
 
 pragma solidity 0.8.26;
 
-import { Test, console2 } from "../../lib/forge-std/src/Test.sol";
+import { IAccessControl } from "../../lib/openzeppelin-contracts/contracts/access/IAccessControl.sol";
 
 import { MockM, MockRegistrar } from "../utils/Mocks.sol";
 
 import { MYieldToOne } from "../../src/MYieldToOne.sol";
 
+import { IBlacklistable } from "../../src/interfaces/IBlacklistable.sol";
 import { IMYieldToOne } from "../../src/interfaces/IMYieldToOne.sol";
 import { IMExtension } from "../../src/interfaces/IMExtension.sol";
 
 import { IERC20 } from "../../lib/common/src/interfaces/IERC20.sol";
 import { IERC20Extended } from "../../lib/common/src/interfaces/IERC20Extended.sol";
 
-contract MYieldToOneUnitTests is Test {
-    bytes32 internal constant _EARNERS_LIST_NAME = "earners";
+import { BaseUnitTest } from "../utils/BaseUnitTest.sol";
 
-    uint56 internal constant _EXP_SCALED_ONE = 1e12;
+contract MYieldToOneUnitTests is BaseUnitTest {
+    bytes32 public constant YIELD_RECIPIENT_MANAGER_ROLE = keccak256("YIELD_RECIPIENT_MANAGER_ROLE");
 
-    address internal _yieldRecipient = makeAddr("yieldRecipient");
+    address public yieldRecipient = makeAddr("yieldRecipient");
+    address public yieldRecipientManager = makeAddr("yieldRecipientManager");
 
-    address internal _alice = makeAddr("alice");
-    address internal _bob = makeAddr("bob");
-    address internal _charlie = makeAddr("charlie");
-    address internal _david = makeAddr("david");
+    MYieldToOne public mYieldToOne;
 
-    address[] internal _accounts = [_alice, _bob, _charlie, _david];
+    string public constant NAME = "HALO USD";
+    string public constant SYMBOL = "HALO USD";
 
-    MockM internal _mToken;
-    MockRegistrar internal _registrar;
-    MYieldToOne internal _mYieldToOne;
+    function setUp() public override {
+        super.setUp();
 
-    function setUp() external {
-        _registrar = new MockRegistrar();
+        mToken = new MockM();
+        registrar = new MockRegistrar();
 
-        _mToken = new MockM();
-
-        _mYieldToOne = new MYieldToOne(address(_mToken), address(_registrar), _yieldRecipient);
+        mYieldToOne = new MYieldToOne(
+            NAME,
+            SYMBOL,
+            address(mToken),
+            yieldRecipient,
+            admin,
+            blacklistManager,
+            yieldRecipientManager
+        );
     }
 
     /* ============ constructor ============ */
+
     function test_constructor() external view {
-        assertEq(_mYieldToOne.mToken(), address(_mToken));
-        assertEq(_mYieldToOne.registrar(), address(_registrar));
-        assertEq(_mYieldToOne.yieldRecipient(), _yieldRecipient);
-        assertEq(_mYieldToOne.name(), "HALO USD");
-        assertEq(_mYieldToOne.symbol(), "HUSD");
-        assertEq(_mYieldToOne.decimals(), 6);
+        assertEq(mYieldToOne.name(), NAME);
+        assertEq(mYieldToOne.symbol(), SYMBOL);
+        assertEq(mYieldToOne.decimals(), 6);
+        assertEq(mYieldToOne.mToken(), address(mToken));
+        assertEq(mYieldToOne.yieldRecipient(), yieldRecipient);
+
+        assertTrue(IAccessControl(address(mYieldToOne)).hasRole(DEFAULT_ADMIN_ROLE, admin));
+        assertTrue(IAccessControl(address(mYieldToOne)).hasRole(BLACKLIST_MANAGER_ROLE, blacklistManager));
+        assertTrue(IAccessControl(address(mYieldToOne)).hasRole(YIELD_RECIPIENT_MANAGER_ROLE, yieldRecipientManager));
     }
 
     function test_constructor_zeroMToken() external {
         vm.expectRevert(IMExtension.ZeroMToken.selector);
-        new MYieldToOne(address(0), address(_registrar), address(_yieldRecipient));
-    }
-
-    function test_constructor_zeroRegistrar() external {
-        vm.expectRevert(IMExtension.ZeroRegistrar.selector);
-        new MYieldToOne(address(_mToken), address(0), address(_yieldRecipient));
+        new MYieldToOne(
+            NAME,
+            SYMBOL,
+            address(0),
+            address(yieldRecipient),
+            admin,
+            blacklistManager,
+            yieldRecipientManager
+        );
     }
 
     function test_constructor_zeroYieldRecipient() external {
         vm.expectRevert(IMYieldToOne.ZeroYieldRecipient.selector);
-        new MYieldToOne(address(_mToken), address(_registrar), address(0));
+        new MYieldToOne(NAME, SYMBOL, address(mToken), address(0), admin, blacklistManager, yieldRecipientManager);
+    }
+
+    function test_constructor_zeroDefaultAdmin() external {
+        vm.expectRevert(IMYieldToOne.ZeroDefaultAdmin.selector);
+        new MYieldToOne(
+            NAME,
+            SYMBOL,
+            address(mToken),
+            address(yieldRecipient),
+            address(0),
+            blacklistManager,
+            yieldRecipientManager
+        );
+    }
+
+    function test_constructor_zeroBlacklistManager() external {
+        vm.expectRevert(IBlacklistable.ZeroBlacklistManager.selector);
+        new MYieldToOne(
+            NAME,
+            SYMBOL,
+            address(mToken),
+            address(yieldRecipient),
+            admin,
+            address(0),
+            yieldRecipientManager
+        );
+    }
+
+    function test_constructor_zeroYieldRecipientManager() external {
+        vm.expectRevert(IMYieldToOne.ZeroYieldRecipientManager.selector);
+        new MYieldToOne(NAME, SYMBOL, address(mToken), address(yieldRecipient), admin, blacklistManager, address(0));
+    }
+
+    /* ============ _approve ============ */
+
+    function test_approve_blacklistedAccount() public {
+        vm.prank(blacklistManager);
+        mYieldToOne.blacklist(alice);
+
+        vm.expectRevert(abi.encodeWithSelector(IBlacklistable.AccountBlacklisted.selector, alice));
+
+        vm.prank(alice);
+        mYieldToOne.approve(bob, 1_000e6);
+    }
+
+    function test_approve_blacklistedSpender() public {
+        vm.prank(blacklistManager);
+        mYieldToOne.blacklist(bob);
+
+        vm.expectRevert(abi.encodeWithSelector(IBlacklistable.AccountBlacklisted.selector, bob));
+
+        vm.prank(alice);
+        mYieldToOne.approve(bob, 1_000e6);
     }
 
     /* ============ _wrap ============ */
 
+    function test_wrap_blacklistedAccount() external {
+        uint256 amount = 1_000e6;
+        mToken.setBalanceOf(alice, amount);
+
+        vm.prank(blacklistManager);
+        mYieldToOne.blacklist(alice);
+
+        vm.expectRevert(abi.encodeWithSelector(IBlacklistable.AccountBlacklisted.selector, alice));
+
+        vm.prank(alice);
+        mYieldToOne.wrap(bob, amount);
+    }
+
+    function test_wrap_blacklistedRecipient() external {
+        uint256 amount = 1_000e6;
+        mToken.setBalanceOf(alice, amount);
+
+        vm.prank(blacklistManager);
+        mYieldToOne.blacklist(bob);
+
+        vm.expectRevert(abi.encodeWithSelector(IBlacklistable.AccountBlacklisted.selector, bob));
+
+        vm.prank(alice);
+        mYieldToOne.wrap(bob, amount);
+    }
+
     function test_wrap_insufficientAmount() external {
         vm.expectRevert(abi.encodeWithSelector(IERC20Extended.InsufficientAmount.selector, 0));
 
-        vm.prank(_alice);
-        _mYieldToOne.wrap(_alice, 0);
+        vm.prank(alice);
+        mYieldToOne.wrap(alice, 0);
     }
 
     function test_wrap_invalidRecipient() external {
-        _mToken.setBalanceOf(_alice, 1_000);
+        mToken.setBalanceOf(alice, 1_000);
 
         vm.expectRevert(abi.encodeWithSelector(IERC20Extended.InvalidRecipient.selector, address(0)));
 
-        vm.prank(_alice);
-        _mYieldToOne.wrap(address(0), 1_000);
+        vm.prank(alice);
+        mYieldToOne.wrap(address(0), 1_000);
     }
 
     function test_wrap() external {
-        _mToken.setBalanceOf(_alice, 2_000);
+        mToken.setBalanceOf(alice, 2_000);
 
-        assertEq(_mToken.balanceOf(_alice), 2_000);
-        assertEq(_mYieldToOne.totalSupply(), 0);
-        assertEq(_mYieldToOne.balanceOf(_alice), 0);
-        assertEq(_mYieldToOne.yield(), 0);
-
-        vm.expectEmit();
-        emit IERC20.Transfer(address(0), _alice, 1_000);
-
-        vm.prank(_alice);
-        _mYieldToOne.wrap(_alice, 1_000);
-
-        assertEq(_mToken.balanceOf(_alice), 1_000);
-        assertEq(_mYieldToOne.totalSupply(), 1_000);
-        assertEq(_mYieldToOne.balanceOf(_alice), 1_000);
-        assertEq(_mToken.balanceOf(address(_mYieldToOne)), 1_000);
-        assertEq(_mYieldToOne.yield(), 0);
+        assertEq(mToken.balanceOf(alice), 2_000);
+        assertEq(mYieldToOne.totalSupply(), 0);
+        assertEq(mYieldToOne.balanceOf(alice), 0);
+        assertEq(mYieldToOne.yield(), 0);
 
         vm.expectEmit();
-        emit IERC20.Transfer(address(0), _bob, 1_000);
+        emit IERC20.Transfer(address(0), alice, 1_000);
 
-        vm.prank(_alice);
-        _mYieldToOne.wrap(_bob, 1_000);
+        vm.prank(alice);
+        mYieldToOne.wrap(alice, 1_000);
 
-        assertEq(_mToken.balanceOf(_alice), 0);
-        assertEq(_mYieldToOne.totalSupply(), 2_000);
-        assertEq(_mYieldToOne.balanceOf(_bob), 1_000);
-        assertEq(_mToken.balanceOf(address(_mYieldToOne)), 2_000);
-        assertEq(_mYieldToOne.yield(), 0);
+        assertEq(mToken.balanceOf(alice), 1_000);
+        assertEq(mYieldToOne.totalSupply(), 1_000);
+        assertEq(mYieldToOne.balanceOf(alice), 1_000);
+        assertEq(mToken.balanceOf(address(mYieldToOne)), 1_000);
+        assertEq(mYieldToOne.yield(), 0);
+
+        vm.expectEmit();
+        emit IERC20.Transfer(address(0), bob, 1_000);
+
+        vm.prank(alice);
+        mYieldToOne.wrap(bob, 1_000);
+
+        assertEq(mToken.balanceOf(alice), 0);
+        assertEq(mYieldToOne.totalSupply(), 2_000);
+        assertEq(mYieldToOne.balanceOf(bob), 1_000);
+        assertEq(mToken.balanceOf(address(mYieldToOne)), 2_000);
+        assertEq(mYieldToOne.yield(), 0);
 
         // simulate yield accrual by increasing accrued
-        _mToken.setBalanceOf(address(_mYieldToOne), 2_500);
-        assertEq(_mYieldToOne.yield(), 500);
-        assertEq(_mYieldToOne.balanceOf(_bob), 1_000);
-        assertEq(_mYieldToOne.balanceOf(_alice), 1_000);
+        mToken.setBalanceOf(address(mYieldToOne), 2_500);
+        assertEq(mYieldToOne.yield(), 500);
+        assertEq(mYieldToOne.balanceOf(bob), 1_000);
+        assertEq(mYieldToOne.balanceOf(alice), 1_000);
     }
 
     /* ============ wrapWithPermit vrs ============ */
 
     function test_wrapWithPermit_vrs() external {
-        _mToken.setBalanceOf(_alice, 1_000);
+        mToken.setBalanceOf(alice, 1_000);
 
-        assertEq(_mToken.balanceOf(_alice), 1_000);
-        assertEq(_mYieldToOne.totalSupply(), 0);
-        assertEq(_mYieldToOne.balanceOf(_alice), 0);
-        assertEq(_mToken.balanceOf(address(_mYieldToOne)), 0);
+        assertEq(mToken.balanceOf(alice), 1_000);
+        assertEq(mYieldToOne.totalSupply(), 0);
+        assertEq(mYieldToOne.balanceOf(alice), 0);
+        assertEq(mToken.balanceOf(address(mYieldToOne)), 0);
 
         vm.expectEmit();
-        emit IERC20.Transfer(address(0), _alice, 1_000);
+        emit IERC20.Transfer(address(0), alice, 1_000);
 
-        vm.startPrank(_alice);
-        _mYieldToOne.wrapWithPermit(_alice, 1_000, 0, 0, bytes32(0), bytes32(0));
+        vm.startPrank(alice);
+        mYieldToOne.wrapWithPermit(alice, 1_000, 0, 0, bytes32(0), bytes32(0));
 
-        assertEq(_mToken.balanceOf(_alice), 0);
-        assertEq(_mYieldToOne.totalSupply(), 1_000);
-        assertEq(_mYieldToOne.balanceOf(_alice), 1_000);
-        assertEq(_mToken.balanceOf(address(_mYieldToOne)), 1_000);
+        assertEq(mToken.balanceOf(alice), 0);
+        assertEq(mYieldToOne.totalSupply(), 1_000);
+        assertEq(mYieldToOne.balanceOf(alice), 1_000);
+        assertEq(mToken.balanceOf(address(mYieldToOne)), 1_000);
     }
 
-    // /* ============ wrapWithPermit signature ============ */
+    /* ============ wrapWithPermit signature ============ */
     function test_wrapWithPermit_signature() external {
-        _mToken.setBalanceOf(_alice, 1_000);
+        mToken.setBalanceOf(alice, 1_000);
 
-        assertEq(_mToken.balanceOf(_alice), 1_000);
-        assertEq(_mYieldToOne.totalSupply(), 0);
-        assertEq(_mYieldToOne.balanceOf(_alice), 0);
-        assertEq(_mToken.balanceOf(address(_mYieldToOne)), 0);
+        assertEq(mToken.balanceOf(alice), 1_000);
+        assertEq(mYieldToOne.totalSupply(), 0);
+        assertEq(mYieldToOne.balanceOf(alice), 0);
+        assertEq(mToken.balanceOf(address(mYieldToOne)), 0);
 
         vm.expectEmit();
-        emit IERC20.Transfer(address(0), _alice, 1_000);
+        emit IERC20.Transfer(address(0), alice, 1_000);
 
-        vm.startPrank(_alice);
-        _mYieldToOne.wrapWithPermit(_alice, 1_000, 0, hex"");
+        vm.startPrank(alice);
+        mYieldToOne.wrapWithPermit(alice, 1_000, 0, hex"");
 
-        assertEq(_mToken.balanceOf(_alice), 0);
-        assertEq(_mYieldToOne.totalSupply(), 1_000);
-        assertEq(_mYieldToOne.balanceOf(_alice), 1_000);
-        assertEq(_mToken.balanceOf(address(_mYieldToOne)), 1_000);
+        assertEq(mToken.balanceOf(alice), 0);
+        assertEq(mYieldToOne.totalSupply(), 1_000);
+        assertEq(mYieldToOne.balanceOf(alice), 1_000);
+        assertEq(mToken.balanceOf(address(mYieldToOne)), 1_000);
     }
 
     /* ============ _unwrap ============ */
+    function test_unwrap_blacklistedAccount() external {
+        uint256 amount = 1_000e6;
+        mToken.setBalanceOf(alice, amount);
+
+        vm.prank(alice);
+        mYieldToOne.wrap(alice, amount);
+
+        vm.prank(blacklistManager);
+        mYieldToOne.blacklist(alice);
+
+        vm.expectRevert(abi.encodeWithSelector(IBlacklistable.AccountBlacklisted.selector, alice));
+
+        vm.prank(alice);
+        mYieldToOne.unwrap(bob, amount);
+    }
+
+    function test_unwrap_blacklistedRecipient() external {
+        uint256 amount = 1_000e6;
+        mToken.setBalanceOf(alice, amount);
+
+        vm.prank(alice);
+        mYieldToOne.wrap(alice, amount);
+
+        vm.prank(blacklistManager);
+        mYieldToOne.blacklist(bob);
+
+        vm.expectRevert(abi.encodeWithSelector(IBlacklistable.AccountBlacklisted.selector, bob));
+
+        vm.prank(alice);
+        mYieldToOne.unwrap(bob, amount);
+    }
+
     function test_unwrap_insufficientAmount() external {
         vm.expectRevert(abi.encodeWithSelector(IERC20Extended.InsufficientAmount.selector, 0));
 
-        vm.prank(_alice);
-        _mYieldToOne.unwrap(_alice, 0);
+        vm.prank(alice);
+        mYieldToOne.unwrap(alice, 0);
     }
 
     function test_unwrap_insufficientBalance() external {
-        _mToken.setBalanceOf(_alice, 999);
-        vm.prank(_alice);
-        _mYieldToOne.wrap(_alice, 999);
+        mToken.setBalanceOf(alice, 999);
+        vm.prank(alice);
+        mYieldToOne.wrap(alice, 999);
 
-        vm.expectRevert(abi.encodeWithSelector(IMYieldToOne.InsufficientBalance.selector, _alice, 999, 1_000));
+        vm.expectRevert(abi.encodeWithSelector(IMYieldToOne.InsufficientBalance.selector, alice, 999, 1_000));
 
-        vm.prank(_alice);
-        _mYieldToOne.unwrap(_alice, 1_000);
+        vm.prank(alice);
+        mYieldToOne.unwrap(alice, 1_000);
     }
 
     function test_unwrap() external {
-        _mToken.setBalanceOf(_alice, 1000);
-        vm.prank(_alice);
-        _mYieldToOne.wrap(_alice, 1000);
+        mToken.setBalanceOf(alice, 1000);
+        vm.prank(alice);
+        mYieldToOne.wrap(alice, 1000);
 
-        assertEq(_mToken.balanceOf(_alice), 0);
-        assertEq(_mYieldToOne.balanceOf(_alice), 1_000);
-        assertEq(_mYieldToOne.totalSupply(), 1_000);
-
-        vm.expectEmit();
-        emit IERC20.Transfer(_alice, address(0), 1);
-
-        vm.prank(_alice);
-        _mYieldToOne.unwrap(_alice, 1);
-
-        assertEq(_mYieldToOne.totalSupply(), 999);
-        assertEq(_mYieldToOne.balanceOf(_alice), 999);
-        assertEq(_mToken.balanceOf(_alice), 1);
+        assertEq(mToken.balanceOf(alice), 0);
+        assertEq(mYieldToOne.balanceOf(alice), 1_000);
+        assertEq(mYieldToOne.totalSupply(), 1_000);
 
         vm.expectEmit();
-        emit IERC20.Transfer(_alice, address(0), 499);
+        emit IERC20.Transfer(alice, address(0), 1);
 
-        vm.prank(_alice);
-        _mYieldToOne.unwrap(_alice, 499);
+        vm.prank(alice);
+        mYieldToOne.unwrap(alice, 1);
 
-        assertEq(_mYieldToOne.totalSupply(), 500);
-        assertEq(_mYieldToOne.balanceOf(_alice), 500);
-        assertEq(_mToken.balanceOf(_alice), 500);
+        assertEq(mYieldToOne.totalSupply(), 999);
+        assertEq(mYieldToOne.balanceOf(alice), 999);
+        assertEq(mToken.balanceOf(alice), 1);
 
         vm.expectEmit();
-        emit IERC20.Transfer(_alice, address(0), 500);
+        emit IERC20.Transfer(alice, address(0), 499);
 
-        vm.prank(_alice);
-        _mYieldToOne.unwrap(_alice, 500);
+        vm.prank(alice);
+        mYieldToOne.unwrap(alice, 499);
 
-        assertEq(_mYieldToOne.totalSupply(), 0);
-        assertEq(_mYieldToOne.balanceOf(_alice), 0);
-        assertEq(_mToken.balanceOf(_alice), 1000);
+        assertEq(mYieldToOne.totalSupply(), 500);
+        assertEq(mYieldToOne.balanceOf(alice), 500);
+        assertEq(mToken.balanceOf(alice), 500);
+
+        vm.expectEmit();
+        emit IERC20.Transfer(alice, address(0), 500);
+
+        vm.prank(alice);
+        mYieldToOne.unwrap(alice, 500);
+
+        assertEq(mYieldToOne.totalSupply(), 0);
+        assertEq(mYieldToOne.balanceOf(alice), 0);
+        assertEq(mToken.balanceOf(alice), 1000);
+    }
+
+    /* ============ _transfer ============ */
+    function test_transfer_insufficientBalance() external {
+        uint256 amount = 1_000e6;
+        mToken.setBalanceOf(alice, amount);
+
+        vm.prank(alice);
+        mYieldToOne.wrap(alice, amount);
+
+        vm.expectRevert(abi.encodeWithSelector(IMYieldToOne.InsufficientBalance.selector, alice, amount, amount + 1));
+
+        vm.prank(alice);
+        mYieldToOne.transfer(bob, amount + 1);
+    }
+
+    function test_transfer_blacklistedSender() external {
+        uint256 amount = 1_000e6;
+        mToken.setBalanceOf(alice, amount);
+
+        vm.prank(alice);
+        mYieldToOne.wrap(alice, amount);
+
+        // Alice allows Carol to transfer tokens on her behalf
+        vm.prank(alice);
+        mYieldToOne.approve(carol, amount);
+
+        vm.prank(blacklistManager);
+        mYieldToOne.blacklist(carol);
+
+        // Reverts cause Carol is blacklisted and cannot transfer tokens on Alice's behalf
+        vm.expectRevert(abi.encodeWithSelector(IBlacklistable.AccountBlacklisted.selector, carol));
+
+        vm.prank(carol);
+        mYieldToOne.transferFrom(alice, bob, amount);
+    }
+
+    function test_transfer_blacklistedAccount() external {
+        uint256 amount = 1_000e6;
+        mToken.setBalanceOf(alice, amount);
+
+        vm.prank(alice);
+        mYieldToOne.wrap(alice, amount);
+
+        vm.prank(blacklistManager);
+        mYieldToOne.blacklist(alice);
+
+        vm.expectRevert(abi.encodeWithSelector(IBlacklistable.AccountBlacklisted.selector, alice));
+
+        vm.prank(alice);
+        mYieldToOne.transfer(bob, amount);
+    }
+
+    function test_transfer_blacklistedRecipient() external {
+        uint256 amount = 1_000e6;
+        mToken.setBalanceOf(alice, amount);
+
+        vm.prank(alice);
+        mYieldToOne.wrap(alice, amount);
+
+        vm.prank(blacklistManager);
+        mYieldToOne.blacklist(bob);
+
+        vm.expectRevert(abi.encodeWithSelector(IBlacklistable.AccountBlacklisted.selector, bob));
+
+        vm.prank(alice);
+        mYieldToOne.transfer(bob, amount);
+    }
+
+    function test_transfer_invalidRecipient() external {
+        uint256 amount = 1_000e6;
+        mToken.setBalanceOf(alice, amount);
+
+        vm.prank(alice);
+        mYieldToOne.wrap(alice, amount);
+
+        vm.expectRevert(abi.encodeWithSelector(IERC20Extended.InvalidRecipient.selector, 0));
+
+        vm.prank(alice);
+        mYieldToOne.transfer(address(0), amount);
+    }
+
+    function test_transfer() external {
+        uint256 amount = 1_000e6;
+        mToken.setBalanceOf(alice, amount);
+
+        vm.prank(alice);
+        mYieldToOne.wrap(alice, amount);
+
+        vm.expectEmit();
+        emit IERC20.Transfer(alice, bob, amount);
+
+        vm.prank(alice);
+        mYieldToOne.transfer(bob, amount);
+
+        assertEq(mYieldToOne.balanceOf(alice), 0);
+        assertEq(mYieldToOne.balanceOf(bob), amount);
+    }
+
+    function testFuzz_transfer(uint256 supply, uint256 aliceBalance, uint256 transferAmount) external {
+        supply = bound(supply, 1, type(uint112).max);
+        aliceBalance = bound(aliceBalance, 1, supply);
+        transferAmount = bound(transferAmount, 1, aliceBalance);
+        uint256 bobBalance = supply - aliceBalance;
+
+        if (bobBalance == 0) return;
+
+        mToken.setBalanceOf(alice, aliceBalance);
+        mToken.setBalanceOf(bob, bobBalance);
+
+        vm.prank(alice);
+        mYieldToOne.wrap(alice, aliceBalance);
+
+        if (bobBalance > 0) {
+            vm.prank(bob);
+            mYieldToOne.wrap(bob, bobBalance);
+        }
+
+        vm.prank(alice);
+        mYieldToOne.transfer(bob, transferAmount);
+
+        assertEq(mYieldToOne.balanceOf(alice), aliceBalance - transferAmount);
+        assertEq(mYieldToOne.balanceOf(bob), bobBalance + transferAmount);
     }
 
     /* ============ yield ============ */
     function test_yield() external {
-        _mToken.setBalanceOf(_alice, 1_000);
-        _mToken.setBalanceOf(_bob, 1_000);
+        mToken.setBalanceOf(alice, 1_000);
+        mToken.setBalanceOf(bob, 1_000);
 
-        vm.prank(_alice);
-        _mYieldToOne.wrap(_alice, 1_000);
+        vm.prank(alice);
+        mYieldToOne.wrap(alice, 1_000);
 
-        vm.prank(_bob);
-        _mYieldToOne.wrap(_bob, 1_000);
+        vm.prank(bob);
+        mYieldToOne.wrap(bob, 1_000);
 
-        assertEq(_mYieldToOne.yield(), 0);
+        assertEq(mYieldToOne.yield(), 0);
 
-        _mToken.setBalanceOf(address(_mYieldToOne), _mYieldToOne.totalSupply() + 500);
+        mToken.setBalanceOf(address(mYieldToOne), mYieldToOne.totalSupply() + 500);
 
-        assertEq(_mYieldToOne.yield(), 500);
+        assertEq(mYieldToOne.yield(), 500);
     }
 
     /* ============ claimYield ============ */
     function test_claimYield_noYield() external {
         vm.expectRevert(IMYieldToOne.NoYield.selector);
 
-        vm.prank(_alice);
-        _mYieldToOne.claimYield();
+        vm.prank(alice);
+        mYieldToOne.claimYield();
     }
 
     function test_claimYield() external {
-        _mToken.setBalanceOf(_alice, 1_000);
+        mToken.setBalanceOf(alice, 1_000);
 
-        vm.prank(_alice);
-        _mYieldToOne.wrap(_alice, 1_000);
+        vm.prank(alice);
+        mYieldToOne.wrap(alice, 1_000);
 
-        _mToken.setBalanceOf(address(_mYieldToOne), _mYieldToOne.totalSupply() + 500);
+        mToken.setBalanceOf(address(mYieldToOne), mYieldToOne.totalSupply() + 500);
 
-        assertEq(_mYieldToOne.yield(), 500);
+        assertEq(mYieldToOne.yield(), 500);
 
         vm.expectEmit();
         emit IMYieldToOne.YieldClaimed(500);
 
-        _mYieldToOne.claimYield();
+        mYieldToOne.claimYield();
 
-        assertEq(_mYieldToOne.yield(), 0);
-        assertEq(_mToken.balanceOf(address(_mYieldToOne)), _mYieldToOne.totalSupply());
-        assertEq(_mToken.balanceOf(_yieldRecipient), 500);
+        assertEq(mYieldToOne.yield(), 0);
+        assertEq(mToken.balanceOf(address(mYieldToOne)), mYieldToOne.totalSupply());
+        assertEq(mToken.balanceOf(yieldRecipient), 500);
     }
 
     /* ============ enableEarning ============ */
-    function test_enableEarning_notApprovedEarner() external {
-        vm.expectRevert(abi.encodeWithSelector(IMExtension.NotApprovedEarner.selector, address(_mYieldToOne)));
-        _mYieldToOne.enableEarning();
-    }
 
     function test_enableEarning_earningEnabled() external {
-        _mToken.setCurrentIndex(1_100000000000);
+        mToken.setCurrentIndex(1_100000000000);
 
-        _registrar.setListContains(_EARNERS_LIST_NAME, address(_mYieldToOne), true);
-        _mYieldToOne.enableEarning();
+        registrar.setListContains(EARNERS_LIST, address(mYieldToOne), true);
+        mYieldToOne.enableEarning();
 
         vm.expectRevert(IMExtension.EarningIsEnabled.selector);
-        _mYieldToOne.enableEarning();
+        mYieldToOne.enableEarning();
     }
 
     function test_enableEarning() external {
-        _registrar.setListContains(_EARNERS_LIST_NAME, address(_mYieldToOne), true);
+        registrar.setListContains(EARNERS_LIST, address(mYieldToOne), true);
 
-        _mToken.setCurrentIndex(1_210000000000);
+        mToken.setCurrentIndex(1_210000000000);
 
         vm.expectEmit();
         emit IMExtension.EarningEnabled(1_210000000000);
 
-        _mYieldToOne.enableEarning();
+        mYieldToOne.enableEarning();
 
-        assertEq(_mYieldToOne.isEarningEnabled(), true);
+        assertEq(mYieldToOne.isEarningEnabled(), true);
     }
 
     /* ============ disableEarning ============ */
     function test_disableEarning_earningIsDisabled() external {
         vm.expectRevert(IMExtension.EarningIsDisabled.selector);
-        _mYieldToOne.disableEarning();
-    }
-
-    function test_disableEarning_approvedEarner() external {
-        _registrar.setListContains(_EARNERS_LIST_NAME, address(_mYieldToOne), true);
-
-        vm.expectRevert(abi.encodeWithSelector(IMExtension.IsApprovedEarner.selector, address(_mYieldToOne)));
-        _mYieldToOne.disableEarning();
+        mYieldToOne.disableEarning();
     }
 
     function test_disableEarning() external {
-        _mToken.setCurrentIndex(1_100000000000);
-        _registrar.setListContains(_EARNERS_LIST_NAME, address(_mYieldToOne), true);
-        _mYieldToOne.enableEarning();
+        mToken.setCurrentIndex(1_100000000000);
+        registrar.setListContains(EARNERS_LIST, address(mYieldToOne), true);
+        mYieldToOne.enableEarning();
 
-        _mToken.setCurrentIndex(1_200000000000);
+        mToken.setCurrentIndex(1_200000000000);
 
-        _registrar.setListContains(_EARNERS_LIST_NAME, address(_mYieldToOne), false);
+        registrar.setListContains(EARNERS_LIST, address(mYieldToOne), false);
+
+        mYieldToOne.disableEarning();
+
+        assertEq(mYieldToOne.isEarningEnabled(), false);
+    }
+
+    /* ============ setYieldRecipient ============ */
+
+    function test_setYieldRecipient_onlyYieldRecipientManager() public {
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IAccessControl.AccessControlUnauthorizedAccount.selector,
+                alice,
+                YIELD_RECIPIENT_MANAGER_ROLE
+            )
+        );
+
+        vm.prank(alice);
+        mYieldToOne.setYieldRecipient(alice);
+    }
+
+    function test_setYieldRecipient_zeroYieldRecipient() public {
+        vm.expectRevert(IMYieldToOne.ZeroYieldRecipient.selector);
+
+        vm.prank(yieldRecipientManager);
+        mYieldToOne.setYieldRecipient(address(0));
+    }
+
+    function test_setYieldRecipient_noUpdate() public {
+        assertEq(mYieldToOne.yieldRecipient(), yieldRecipient);
+
+        vm.prank(yieldRecipientManager);
+        mYieldToOne.setYieldRecipient(yieldRecipient);
+
+        assertEq(mYieldToOne.yieldRecipient(), yieldRecipient);
+    }
+
+    function test_setYieldRecipient() public {
+        assertEq(mYieldToOne.yieldRecipient(), yieldRecipient);
 
         vm.expectEmit();
-        emit IMExtension.EarningDisabled(1_200000000000);
+        emit IMYieldToOne.YieldRecipientSet(alice);
 
-        _mYieldToOne.disableEarning();
+        vm.prank(yieldRecipientManager);
+        mYieldToOne.setYieldRecipient(alice);
 
-        assertEq(_mYieldToOne.isEarningEnabled(), false);
+        assertEq(mYieldToOne.yieldRecipient(), alice);
     }
 }

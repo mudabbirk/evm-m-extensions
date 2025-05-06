@@ -24,6 +24,9 @@ contract TestBase is Test {
     address internal constant _mSource = 0x3f0376da3Ae4313E7a5F1dA184BAFC716252d759;
 
     address internal _yieldRecipient = makeAddr("yieldRecipient");
+    address internal _defaultAdmin = makeAddr("defaultAdmin");
+    address internal _blacklistManager = makeAddr("blacklistManager");
+    address internal _yieldRecipientManager = makeAddr("yieldRecipientManager");
 
     address internal _alice = makeAddr("alice");
     address internal _bob = makeAddr("bob");
@@ -34,6 +37,9 @@ contract TestBase is Test {
     address[] internal _accounts = [_alice, _bob, _carol];
 
     MYieldToOne internal _mYieldToOne;
+
+    string internal constant _NAME = "HALO USD";
+    string internal constant _SYMBOL = "HALO USD";
 
     function _addToList(bytes32 list, address account) internal {
         vm.prank(_standardGovernor);

@@ -7,17 +7,22 @@ import { IERC20 } from "../lib/common/src/interfaces/IERC20.sol";
 import { IMTokenLike } from "./interfaces/IMTokenLike.sol";
 import { IMYieldToOne } from "./interfaces/IMYieldToOne.sol";
 
-import { MExtension } from "./MExtension.sol";
+import { Blacklistable } from "./abstract/components/Blacklistable.sol";
+
+import { MExtension } from "./abstract/MExtension.sol";
 
 /**
  * @title  ERC20 Token contract for wrapping M into a non-rebasing token with claimable yields.
  * @author M^0 Labs
  */
-contract MYieldToOne is IMYieldToOne, MExtension {
+contract MYieldToOne is IMYieldToOne, MExtension, Blacklistable {
     /* ============ Variables ============ */
 
     /// @inheritdoc IMYieldToOne
-    address public immutable yieldRecipient;
+    bytes32 public constant YIELD_RECIPIENT_MANAGER_ROLE = keccak256("YIELD_RECIPIENT_MANAGER_ROLE");
+
+    /// @inheritdoc IMYieldToOne
+    address public yieldRecipient;
 
     /// @inheritdoc IERC20
     mapping(address account => uint256 balance) public balanceOf;
@@ -29,16 +34,30 @@ contract MYieldToOne is IMYieldToOne, MExtension {
 
     /**
      * @dev   Constructs the M extension token with yield claimable by a single recipient.
-     * @param mToken            The address of an M Token.
-     * @param registrar         The address of a registrar.
-     * @param yieldRecipient_   The address of an yield destination.
+     * @param name                   The name of the token (e.g. "M Yield to One").
+     * @param symbol                 The symbol of the token (e.g. "MYO").
+     * @param mToken                 The address of the M Token.
+     * @param yieldRecipient_        The address of an yield destination.
+     * @param defaultAdmin           The address of a default admin.
+     * @param blacklistManager       The address of a blacklist manager.
+     * @param yieldRecipientManager  The address of a yield recipient setter.
      */
     constructor(
+        string memory name,
+        string memory symbol,
         address mToken,
-        address registrar,
-        address yieldRecipient_
-    ) MExtension("HALO USD", "HUSD", mToken, registrar) {
-        if ((yieldRecipient = yieldRecipient_) == address(0)) revert ZeroYieldRecipient();
+        address yieldRecipient_,
+        address defaultAdmin,
+        address blacklistManager,
+        address yieldRecipientManager
+    ) MExtension(name, symbol, mToken) Blacklistable(blacklistManager) {
+        if (yieldRecipientManager == address(0)) revert ZeroYieldRecipientManager();
+        if (defaultAdmin == address(0)) revert ZeroDefaultAdmin();
+
+        _setYieldRecipient(yieldRecipient_);
+
+        _grantRole(DEFAULT_ADMIN_ROLE, defaultAdmin);
+        _grantRole(YIELD_RECIPIENT_MANAGER_ROLE, yieldRecipientManager);
     }
 
     /* ============ Interactive Functions ============ */
@@ -57,6 +76,11 @@ contract MYieldToOne is IMYieldToOne, MExtension {
         return yield_;
     }
 
+    /// @inheritdoc IMYieldToOne
+    function setYieldRecipient(address account) external onlyRole(YIELD_RECIPIENT_MANAGER_ROLE) {
+        _setYieldRecipient(account);
+    }
+
     /* ============ View/Pure Functions ============ */
 
     /// @inheritdoc IMYieldToOne
@@ -68,6 +92,29 @@ contract MYieldToOne is IMYieldToOne, MExtension {
     }
 
     /* ============ Internal Interactive Functions ============ */
+
+    /**
+     * @dev Approve `spender` to spend `amount` of tokens from `account`.
+     * @param account The address approving the allowance.
+     * @param spender The address approved to spend the tokens.
+     * @param amount  The amount of tokens being approved for spending.
+     */
+    function _approve(address account, address spender, uint256 amount) internal override {
+        _revertIfBlacklisted(account);
+        _revertIfBlacklisted(spender);
+
+        super._approve(account, spender, amount);
+    }
+
+    /**
+     * @dev    Hooks called before wrapping M into M Extension token.
+     * @param  account   The account from which M is deposited.
+     * @param  recipient The account receiving the minted M Extension token.
+     */
+    function _beforeWrap(address account, address recipient, uint256 /* amount */) internal view override {
+        _revertIfBlacklisted(account);
+        _revertIfBlacklisted(recipient);
+    }
 
     /**
      * @dev   Mints `amount` tokens to `recipient`.
@@ -84,6 +131,16 @@ contract MYieldToOne is IMYieldToOne, MExtension {
         }
 
         emit Transfer(address(0), recipient, amount);
+    }
+
+    /**
+     * @dev   Hook called before unwrapping M Extension token.
+     * @param account   The account from which M Extension token is burned.
+     * @param recipient The account receiving the withdrawn M.
+     */
+    function _beforeUnwrap(address account, address recipient, uint256 /* amount */) internal view override {
+        _revertIfBlacklisted(account);
+        _revertIfBlacklisted(recipient);
     }
 
     /**
@@ -113,17 +170,37 @@ contract MYieldToOne is IMYieldToOne, MExtension {
      * @param amount    The amount to be transferred.
      */
     function _transfer(address sender, address recipient, uint256 amount) internal override {
+        _revertIfBlacklisted(msg.sender);
+        _revertIfBlacklisted(sender);
+        _revertIfBlacklisted(recipient);
         _revertIfInvalidRecipient(recipient);
 
         emit Transfer(sender, recipient, amount);
 
         if (amount == 0) return;
 
-        // NOTE: Can be `unchecked` because `_transfer` already checked for insufficient sender balance.
+        uint256 balance_ = balanceOf[sender];
+
+        if (balance_ < amount) revert InsufficientBalance(sender, balance_, amount);
+
+        // NOTE: Can be `unchecked` because we check for insufficient sender balance above.
         unchecked {
-            balanceOf[sender] -= amount;
+            balanceOf[sender] = balance_ - amount;
             balanceOf[recipient] += amount;
         }
+    }
+
+    /**
+     * @dev Sets the yield recipient.
+     * @param account The address of the new yield recipient.
+     */
+    function _setYieldRecipient(address account) internal {
+        if (account == address(0)) revert ZeroYieldRecipient();
+        if (account == yieldRecipient) return;
+
+        yieldRecipient = account;
+
+        emit YieldRecipientSet(account);
     }
 
     /* ============ Internal View/Pure Functions ============ */

@@ -18,12 +18,6 @@ interface IMExtension is IERC20Extended {
      */
     event EarningEnabled(uint128 index);
 
-    /**
-     * @notice Emitted when M extension earning is disabled.
-     * @param  index The M extension index at the moment earning is disabled.
-     */
-    event EarningDisabled(uint128 index);
-
     /* ============ Custom Errors ============ */
 
     /// @notice Emitted when performing an operation that is not allowed when earning is disabled.
@@ -32,17 +26,8 @@ interface IMExtension is IERC20Extended {
     /// @notice Emitted when performing an operation that is not allowed when earning is enabled.
     error EarningIsEnabled();
 
-    /// @notice Emitted when calling `stopEarning` for an account approved as earner by the TTG Registrar.
-    error IsApprovedEarner(address account);
-
-    /// @notice Emitted when calling `startEarning` for an account not approved as earner by the TTG Registrar.
-    error NotApprovedEarner(address account);
-
     /// @notice Emitted in constructor if M Token is 0x0.
     error ZeroMToken();
-
-    /// @notice Emitted in constructor if TTG Registrar is 0x0.
-    error ZeroRegistrar();
 
     /* ============ Interactive Functions ============ */
 
@@ -84,7 +69,7 @@ interface IMExtension is IERC20Extended {
      * @param  deadline  The last timestamp where the signature is still valid.
      * @param  signature An arbitrary signature (EIP-712).
      */
-    function wrapWithPermit(address recipient, uint256 amount, uint256 deadline, bytes memory signature) external;
+    function wrapWithPermit(address recipient, uint256 amount, uint256 deadline, bytes calldata signature) external;
 
     /**
      * @notice Unwraps `amount` extension token from the caller into M for `recipient`.
@@ -97,9 +82,6 @@ interface IMExtension is IERC20Extended {
 
     /// @notice The address of the M Token contract.
     function mToken() external view returns (address);
-
-    /// @notice The address of the TTG Registrar contract.
-    function registrar() external view returns (address);
 
     /// @notice Whether M extension earning is enabled.
     function isEarningEnabled() external view returns (bool);
