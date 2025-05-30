@@ -2,9 +2,13 @@
 
 pragma solidity 0.8.26;
 
-import { IAccessControl } from "../../lib/openzeppelin-contracts/contracts/access/IAccessControl.sol";
+import {
+    IAccessControl
+} from "../../lib/common/lib/openzeppelin-contracts-upgradeable/lib/openzeppelin-contracts/contracts/access/IAccessControl.sol";
 
-import { MockM, MockRegistrar } from "../utils/Mocks.sol";
+import { Upgrades, UnsafeUpgrades } from "../../lib/openzeppelin-foundry-upgrades/src/Upgrades.sol";
+
+import { MockM } from "../utils/Mocks.sol";
 
 import { MYieldToOne } from "../../src/MYieldToOne.sol";
 
@@ -18,11 +22,6 @@ import { IERC20Extended } from "../../lib/common/src/interfaces/IERC20Extended.s
 import { BaseUnitTest } from "../utils/BaseUnitTest.sol";
 
 contract MYieldToOneUnitTests is BaseUnitTest {
-    bytes32 public constant YIELD_RECIPIENT_MANAGER_ROLE = keccak256("YIELD_RECIPIENT_MANAGER_ROLE");
-
-    address public yieldRecipient = makeAddr("yieldRecipient");
-    address public yieldRecipientManager = makeAddr("yieldRecipientManager");
-
     MYieldToOne public mYieldToOne;
 
     string public constant NAME = "HALO USD";
@@ -32,22 +31,27 @@ contract MYieldToOneUnitTests is BaseUnitTest {
         super.setUp();
 
         mToken = new MockM();
-        registrar = new MockRegistrar();
 
-        mYieldToOne = new MYieldToOne(
-            NAME,
-            SYMBOL,
-            address(mToken),
-            yieldRecipient,
-            admin,
-            blacklistManager,
-            yieldRecipientManager
+        mYieldToOne = MYieldToOne(
+            Upgrades.deployUUPSProxy(
+                "MYieldToOne.sol:MYieldToOne",
+                abi.encodeWithSelector(
+                    MYieldToOne.initialize.selector,
+                    NAME,
+                    SYMBOL,
+                    address(mToken),
+                    yieldRecipient,
+                    admin,
+                    blacklistManager,
+                    yieldRecipientManager
+                )
+            )
         );
     }
 
-    /* ============ constructor ============ */
+    /* ============ initialize ============ */
 
-    function test_constructor() external view {
+    function test_initialize() external view {
         assertEq(mYieldToOne.name(), NAME);
         assertEq(mYieldToOne.symbol(), SYMBOL);
         assertEq(mYieldToOne.decimals(), 6);
@@ -59,53 +63,109 @@ contract MYieldToOneUnitTests is BaseUnitTest {
         assertTrue(IAccessControl(address(mYieldToOne)).hasRole(YIELD_RECIPIENT_MANAGER_ROLE, yieldRecipientManager));
     }
 
-    function test_constructor_zeroMToken() external {
+    function test_initialize_zeroMToken() external {
+        address implementation = address(new MYieldToOne());
+
         vm.expectRevert(IMExtension.ZeroMToken.selector);
-        new MYieldToOne(
-            NAME,
-            SYMBOL,
-            address(0),
-            address(yieldRecipient),
-            admin,
-            blacklistManager,
-            yieldRecipientManager
+        MYieldToOne(
+            UnsafeUpgrades.deployUUPSProxy(
+                implementation,
+                abi.encodeWithSelector(
+                    MYieldToOne.initialize.selector,
+                    NAME,
+                    SYMBOL,
+                    address(0),
+                    address(yieldRecipient),
+                    admin,
+                    blacklistManager,
+                    yieldRecipientManager
+                )
+            )
         );
     }
 
-    function test_constructor_zeroYieldRecipient() external {
+    function test_initialize_zeroYieldRecipient() external {
+        address implementation = address(new MYieldToOne());
+
         vm.expectRevert(IMYieldToOne.ZeroYieldRecipient.selector);
-        new MYieldToOne(NAME, SYMBOL, address(mToken), address(0), admin, blacklistManager, yieldRecipientManager);
+        MYieldToOne(
+            UnsafeUpgrades.deployUUPSProxy(
+                implementation,
+                abi.encodeWithSelector(
+                    MYieldToOne.initialize.selector,
+                    NAME,
+                    SYMBOL,
+                    address(mToken),
+                    address(0),
+                    admin,
+                    blacklistManager,
+                    yieldRecipientManager
+                )
+            )
+        );
     }
 
-    function test_constructor_zeroDefaultAdmin() external {
+    function test_initialize_zeroDefaultAdmin() external {
+        address implementation = address(new MYieldToOne());
+
         vm.expectRevert(IMYieldToOne.ZeroDefaultAdmin.selector);
-        new MYieldToOne(
-            NAME,
-            SYMBOL,
-            address(mToken),
-            address(yieldRecipient),
-            address(0),
-            blacklistManager,
-            yieldRecipientManager
+        MYieldToOne(
+            UnsafeUpgrades.deployUUPSProxy(
+                implementation,
+                abi.encodeWithSelector(
+                    MYieldToOne.initialize.selector,
+                    NAME,
+                    SYMBOL,
+                    address(mToken),
+                    address(yieldRecipient),
+                    address(0),
+                    blacklistManager,
+                    yieldRecipientManager
+                )
+            )
         );
     }
 
-    function test_constructor_zeroBlacklistManager() external {
+    function test_initialize_zeroBlacklistManager() external {
+        address implementation = address(new MYieldToOne());
+
         vm.expectRevert(IBlacklistable.ZeroBlacklistManager.selector);
-        new MYieldToOne(
-            NAME,
-            SYMBOL,
-            address(mToken),
-            address(yieldRecipient),
-            admin,
-            address(0),
-            yieldRecipientManager
+        MYieldToOne(
+            UnsafeUpgrades.deployUUPSProxy(
+                implementation,
+                abi.encodeWithSelector(
+                    MYieldToOne.initialize.selector,
+                    NAME,
+                    SYMBOL,
+                    address(mToken),
+                    address(yieldRecipient),
+                    admin,
+                    address(0),
+                    yieldRecipientManager
+                )
+            )
         );
     }
 
-    function test_constructor_zeroYieldRecipientManager() external {
+    function test_initialize_zeroYieldRecipientManager() external {
+        address implementation = address(new MYieldToOne());
+
         vm.expectRevert(IMYieldToOne.ZeroYieldRecipientManager.selector);
-        new MYieldToOne(NAME, SYMBOL, address(mToken), address(yieldRecipient), admin, blacklistManager, address(0));
+        MYieldToOne(
+            UnsafeUpgrades.deployUUPSProxy(
+                implementation,
+                abi.encodeWithSelector(
+                    MYieldToOne.initialize.selector,
+                    NAME,
+                    SYMBOL,
+                    address(mToken),
+                    address(yieldRecipient),
+                    admin,
+                    blacklistManager,
+                    address(0)
+                )
+            )
+        );
     }
 
     /* ============ _approve ============ */
@@ -301,7 +361,7 @@ contract MYieldToOneUnitTests is BaseUnitTest {
         vm.prank(alice);
         mYieldToOne.wrap(alice, 999);
 
-        vm.expectRevert(abi.encodeWithSelector(IMYieldToOne.InsufficientBalance.selector, alice, 999, 1_000));
+        vm.expectRevert(abi.encodeWithSelector(IMExtension.InsufficientBalance.selector, alice, 999, 1_000));
 
         vm.prank(alice);
         mYieldToOne.unwrap(alice, 1_000);
@@ -355,7 +415,7 @@ contract MYieldToOneUnitTests is BaseUnitTest {
         vm.prank(alice);
         mYieldToOne.wrap(alice, amount);
 
-        vm.expectRevert(abi.encodeWithSelector(IMYieldToOne.InsufficientBalance.selector, alice, amount, amount + 1));
+        vm.expectRevert(abi.encodeWithSelector(IMExtension.InsufficientBalance.selector, alice, amount, amount + 1));
 
         vm.prank(alice);
         mYieldToOne.transfer(bob, amount + 1);
@@ -512,16 +572,17 @@ contract MYieldToOneUnitTests is BaseUnitTest {
         mYieldToOne.claimYield();
 
         assertEq(mYieldToOne.yield(), 0);
+
         assertEq(mToken.balanceOf(address(mYieldToOne)), mYieldToOne.totalSupply());
-        assertEq(mToken.balanceOf(yieldRecipient), 500);
+        assertEq(mToken.balanceOf(address(mYieldToOne)), 1_500);
+
+        assertEq(mToken.balanceOf(yieldRecipient), 0);
+        assertEq(mYieldToOne.balanceOf(yieldRecipient), 500);
     }
 
     /* ============ enableEarning ============ */
 
     function test_enableEarning_earningEnabled() external {
-        mToken.setCurrentIndex(1_100000000000);
-
-        registrar.setListContains(EARNERS_LIST, address(mYieldToOne), true);
         mYieldToOne.enableEarning();
 
         vm.expectRevert(IMExtension.EarningIsEnabled.selector);
@@ -529,8 +590,6 @@ contract MYieldToOneUnitTests is BaseUnitTest {
     }
 
     function test_enableEarning() external {
-        registrar.setListContains(EARNERS_LIST, address(mYieldToOne), true);
-
         mToken.setCurrentIndex(1_210000000000);
 
         vm.expectEmit();
@@ -542,6 +601,7 @@ contract MYieldToOneUnitTests is BaseUnitTest {
     }
 
     /* ============ disableEarning ============ */
+
     function test_disableEarning_earningIsDisabled() external {
         vm.expectRevert(IMExtension.EarningIsDisabled.selector);
         mYieldToOne.disableEarning();
@@ -549,12 +609,10 @@ contract MYieldToOneUnitTests is BaseUnitTest {
 
     function test_disableEarning() external {
         mToken.setCurrentIndex(1_100000000000);
-        registrar.setListContains(EARNERS_LIST, address(mYieldToOne), true);
+
         mYieldToOne.enableEarning();
 
         mToken.setCurrentIndex(1_200000000000);
-
-        registrar.setListContains(EARNERS_LIST, address(mYieldToOne), false);
 
         mYieldToOne.disableEarning();
 

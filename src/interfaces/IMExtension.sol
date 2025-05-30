@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 
-pragma solidity 0.8.26;
+pragma solidity ^0.8.26;
 
 import { IERC20Extended } from "../../lib/common/src/interfaces/IERC20Extended.sol";
 
@@ -26,15 +26,29 @@ interface IMExtension is IERC20Extended {
     /// @notice Emitted when performing an operation that is not allowed when earning is enabled.
     error EarningIsEnabled();
 
+    /**
+     * @notice Emitted when there is insufficient balance to decrement from `account`.
+     * @param  account The account with insufficient balance.
+     * @param  balance The balance of the account.
+     * @param  amount  The amount to decrement.
+     */
+    error InsufficientBalance(address account, uint256 balance, uint256 amount);
+
     /// @notice Emitted in constructor if M Token is 0x0.
     error ZeroMToken();
 
     /* ============ Interactive Functions ============ */
 
-    /// @notice Enables earning of extension token if allowed by the TTG Registrar and if it has never been done.
+    /**
+     * @notice Enables earning of extension token if allowed by the TTG Registrar and if it has never been done.
+     * @dev SHOULD be virtual to allow extensions to override it.
+     */
     function enableEarning() external;
 
-    /// @notice Disables earning of extension token if disallowed by the TTG Registrar and if it has never been done.
+    /**
+     * @notice Disables earning of extension token if disallowed by the TTG Registrar and if it has never been done.
+     * @dev SHOULD be virtual to allow extensions to override it.
+     */
     function disableEarning() external;
 
     /**
@@ -83,6 +97,9 @@ interface IMExtension is IERC20Extended {
     /// @notice The address of the M Token contract.
     function mToken() external view returns (address);
 
-    /// @notice Whether M extension earning is enabled.
+    /**
+     * @notice Whether M extension earning is enabled.
+     * @dev SHOULD be virtual to allow extensions to override it.
+     */
     function isEarningEnabled() external view returns (bool);
 }
