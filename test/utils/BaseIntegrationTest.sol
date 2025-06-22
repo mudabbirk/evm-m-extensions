@@ -15,6 +15,7 @@ import { MYieldToOne } from "../../src/projects/yieldToOne/MYieldToOne.sol";
 import { MYieldFee } from "../../src/projects/yieldToAllWithFee/MYieldFee.sol";
 import { MEarnerManager } from "../../src/projects/earnerManager/MEarnerManager.sol";
 import { SwapFacility } from "../../src/swap/SwapFacility.sol";
+import { UniswapV3SwapAdapter } from "../../src/swap/UniswapV3SwapAdapter.sol";
 
 import { Helpers } from "./Helpers.sol";
 
@@ -41,6 +42,11 @@ contract BaseIntegrationTest is Helpers, Test {
     bytes32 public constant EARNER_MANAGER_ROLE = keccak256("EARNER_MANAGER_ROLE");
     bytes32 public constant M_SWAPPER_ROLE = keccak256("M_SWAPPER_ROLE");
 
+    address constant WRAPPED_M = 0x437cc33344a0B27A429f795ff6B469C72698B291;
+    address constant USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+    address constant USDT = 0xdAC17F958D2ee523a2206206994597C13D831ec7;
+    address constant UNISWAP_V3_ROUTER = 0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45;
+
     address public admin = makeAddr("admin");
     address public blacklistManager = makeAddr("blacklistManager");
     address public yieldRecipient = makeAddr("yieldRecipient");
@@ -65,6 +71,7 @@ contract BaseIntegrationTest is Helpers, Test {
     MYieldFee public mYieldFee;
     MEarnerManager public mEarnerManager;
     SwapFacility public swapFacility;
+    UniswapV3SwapAdapter public swapAdapter;
 
     string public constant NAME = "M USD Extension";
     string public constant SYMBOL = "MUSDE";
@@ -73,9 +80,21 @@ contract BaseIntegrationTest is Helpers, Test {
         (alice, aliceKey) = makeAddrAndKey("alice");
         accounts = [alice, bob, carol, charlie, david];
 
+        address[] memory whitelistedTokens = new address[](3);
+        whitelistedTokens[0] = WRAPPED_M;
+        whitelistedTokens[1] = USDC;
+        whitelistedTokens[2] = USDT;
+
+        swapAdapter = new UniswapV3SwapAdapter(
+            WRAPPED_M, // baseToken (wrapped M)
+            UNISWAP_V3_ROUTER,
+            admin,
+            whitelistedTokens
+        );
+
         swapFacility = SwapFacility(
             UnsafeUpgrades.deployUUPSProxy(
-                address(new SwapFacility(address(mToken), address(registrar))),
+                address(new SwapFacility(address(mToken), address(registrar), address(swapAdapter))),
                 abi.encodeWithSelector(SwapFacility.initialize.selector, admin)
             )
         );
