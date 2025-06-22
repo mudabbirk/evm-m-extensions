@@ -2,18 +2,18 @@
 
 pragma solidity 0.8.26;
 
-import { IERC20 } from "../lib/common/src/interfaces/IERC20.sol";
+import { IERC20 } from "../../../lib/common/src/interfaces/IERC20.sol";
 
 import {
     AccessControlUpgradeable
-} from "../lib/common/lib/openzeppelin-contracts-upgradeable/contracts/access/AccessControlUpgradeable.sol";
+} from "../../../lib/common/lib/openzeppelin-contracts-upgradeable/contracts/access/AccessControlUpgradeable.sol";
 
-import { IndexingMath } from "./lib/IndexingMath.sol";
-import { UIntMath } from "../lib/common/src/libs/UIntMath.sol";
+import { IndexingMath } from "../../libs/IndexingMath.sol";
+import { UIntMath } from "../../../lib/common/src/libs/UIntMath.sol";
 
-import { IMEarnerManager } from "./interfaces/IMEarnerManager.sol";
+import { IMEarnerManager } from "./IMEarnerManager.sol";
 
-import { MExtension } from "./abstract/MExtension.sol";
+import { MExtension } from "../../MExtension.sol";
 
 abstract contract MEarnerManagerStorageLayout {
     /**
@@ -384,10 +384,6 @@ contract MEarnerManager is IMEarnerManager, AccessControlUpgradeable, MEarnerMan
         MEarnerManagerStorageStruct storage $ = _getMEarnerManagerStorageLocation();
         Account storage accountInfo_ = $.accounts[account];
 
-        uint256 balance_ = accountInfo_.balance;
-
-        _revertIfInsufficientBalance(account, balance_, amount);
-
         // Slightly overestimate the principal amount to be burned and use safe value to avoid underflow in unchecked block
         uint112 fromPrincipal_ = accountInfo_.principal;
         uint112 principal_ = IndexingMath.getSafePrincipalAmountRoundedUp(amount, currentIndex(), fromPrincipal_);
@@ -395,7 +391,7 @@ contract MEarnerManager is IMEarnerManager, AccessControlUpgradeable, MEarnerMan
         // NOTE: Can be `unchecked` because `_revertIfInsufficientBalance` is used.
         //       Can be `unchecked` because safety adjustment to `principal_` is applied above
         unchecked {
-            accountInfo_.balance = balance_ - amount;
+            accountInfo_.balance -= amount;
             $.totalSupply -= amount;
 
             accountInfo_.principal = fromPrincipal_ - principal_;

@@ -6,7 +6,7 @@ import { Upgrades, UnsafeUpgrades } from "../../lib/openzeppelin-foundry-upgrade
 
 import { IMTokenLike } from "../../src/interfaces/IMTokenLike.sol";
 
-import { MYieldFee } from "../../src/MYieldFee.sol";
+import { MYieldFee } from "../../src/projects/yieldToAllWithFee/MYieldFee.sol";
 
 import { BaseIntegrationTest } from "../utils/BaseIntegrationTest.sol";
 
@@ -44,7 +44,7 @@ contract MYieldFeeIntegrationTests is BaseIntegrationTest {
         assertEq(mYieldFee.symbol(), SYMBOL);
         assertEq(mYieldFee.decimals(), 6);
         assertEq(mYieldFee.mToken(), address(mToken));
-        assertEq(mYieldFee.HUNDRED_PERCENT(), 10_000);
+        assertEq(mYieldFee.ONE_HUNDRED_PERCENT(), 10_000);
         assertEq(mYieldFee.latestIndex(), EXP_SCALED_ONE);
         assertEq(mYieldFee.yieldFeeRate(), YIELD_FEE_RATE);
         assertEq(mYieldFee.yieldFeeRecipient(), yieldFeeRecipient);

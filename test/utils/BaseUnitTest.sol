@@ -6,10 +6,9 @@ import { Test } from "../../lib/forge-std/src/Test.sol";
 
 import { ContinuousIndexingMath } from "../../lib/common/src/libs/ContinuousIndexingMath.sol";
 import { IndexingMath } from "../../lib/common/src/libs/IndexingMath.sol";
-import { UIntMath } from "../../lib/common/src/libs/UIntMath.sol";
-import { ERC1967Proxy } from "../../lib/openzeppelin-contracts/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+import { Upgrades, UnsafeUpgrades } from "../../lib/openzeppelin-foundry-upgrades/src/Upgrades.sol";
 
-import { SwapFacility } from "../../src/SwapFacility.sol";
+import { SwapFacility } from "../../src/swap/SwapFacility.sol";
 
 import { MockM, MockRateOracle, MockRegistrar } from "../utils/Mocks.sol";
 
@@ -62,11 +61,9 @@ contract BaseUnitTest is Helpers, Test {
         registrar = new MockRegistrar();
 
         swapFacility = SwapFacility(
-            address(
-                new ERC1967Proxy(
-                    address(new SwapFacility(address(mToken), address(registrar))),
-                    abi.encodeWithSelector(SwapFacility.initialize.selector, admin)
-                )
+            UnsafeUpgrades.deployUUPSProxy(
+                address(new SwapFacility(address(mToken), address(registrar))),
+                abi.encodeWithSelector(SwapFacility.initialize.selector, admin)
             )
         );
 

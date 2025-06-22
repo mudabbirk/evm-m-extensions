@@ -5,16 +5,16 @@ pragma solidity 0.8.26;
 import { Test } from "../../lib/forge-std/src/Test.sol";
 
 import { ContinuousIndexingMath } from "../../lib/common/src/libs/ContinuousIndexingMath.sol";
-import { ERC1967Proxy } from "../../lib/openzeppelin-contracts/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+import { Upgrades, UnsafeUpgrades } from "../../lib/openzeppelin-foundry-upgrades/src/Upgrades.sol";
 
 import { IMExtension } from "../../src/interfaces/IMExtension.sol";
 import { IMTokenLike } from "../../src/interfaces/IMTokenLike.sol";
-import { IRegistrarLike } from "../../src/interfaces/IRegistrarLike.sol";
+import { IRegistrarLike } from "../../src/swap/interfaces/IRegistrarLike.sol";
 
-import { MYieldToOne } from "../../src/MYieldToOne.sol";
-import { MYieldFee } from "../../src/MYieldFee.sol";
-import { MEarnerManager } from "../../src/MEarnerManager.sol";
-import { SwapFacility } from "../../src/SwapFacility.sol";
+import { MYieldToOne } from "../../src/projects/yieldToOne/MYieldToOne.sol";
+import { MYieldFee } from "../../src/projects/yieldToAllWithFee/MYieldFee.sol";
+import { MEarnerManager } from "../../src/projects/earnerManager/MEarnerManager.sol";
+import { SwapFacility } from "../../src/swap/SwapFacility.sol";
 
 import { Helpers } from "./Helpers.sol";
 
@@ -74,11 +74,9 @@ contract BaseIntegrationTest is Helpers, Test {
         accounts = [alice, bob, carol, charlie, david];
 
         swapFacility = SwapFacility(
-            address(
-                new ERC1967Proxy(
-                    address(new SwapFacility(address(mToken), address(registrar))),
-                    abi.encodeWithSelector(SwapFacility.initialize.selector, admin)
-                )
+            UnsafeUpgrades.deployUUPSProxy(
+                address(new SwapFacility(address(mToken), address(registrar))),
+                abi.encodeWithSelector(SwapFacility.initialize.selector, admin)
             )
         );
 

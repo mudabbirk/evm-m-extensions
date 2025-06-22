@@ -2,31 +2,34 @@
 
 pragma solidity 0.8.26;
 
-import { IERC20 } from "../lib/common/src/interfaces/IERC20.sol";
+import { IERC20 } from "../../lib/common/src/interfaces/IERC20.sol";
 import {
     AccessControlUpgradeable
-} from "../lib/common/lib/openzeppelin-contracts-upgradeable/contracts/access/AccessControlUpgradeable.sol";
-import { Lock } from "../lib/universal-router/contracts/base/Lock.sol";
+} from "../../lib/common/lib/openzeppelin-contracts-upgradeable/contracts/access/AccessControlUpgradeable.sol";
+import { Lock } from "../../lib/universal-router/contracts/base/Lock.sol";
+
+import { IMTokenLike } from "../interfaces/IMTokenLike.sol";
+import { IMExtension } from "../interfaces/IMExtension.sol";
 
 import { ISwapFacility } from "./interfaces/ISwapFacility.sol";
 import { IRegistrarLike } from "./interfaces/IRegistrarLike.sol";
-import { IMTokenLike } from "./interfaces/IMTokenLike.sol";
-import { IMExtension } from "./interfaces/IMExtension.sol";
 
 /**
  * @title  Swap Facility
  * @notice A contract responsible for swapping between $M Extensions.
  * @author M0 Labs
  */
-contract SwapFacility is AccessControlUpgradeable, Lock, ISwapFacility {
+contract SwapFacility is ISwapFacility, AccessControlUpgradeable, Lock {
     bytes32 public constant EARNERS_LIST_IGNORED_KEY = "earners_list_ignored";
     bytes32 public constant EARNERS_LIST_NAME = "earners";
     bytes32 public constant M_SWAPPER_ROLE = keccak256("M_SWAPPER_ROLE");
 
     /// @inheritdoc ISwapFacility
+    /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
     address public immutable mToken;
 
     /// @inheritdoc ISwapFacility
+    /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
     address public immutable registrar;
 
     /**
@@ -35,6 +38,7 @@ contract SwapFacility is AccessControlUpgradeable, Lock, ISwapFacility {
      * @param  mToken_    The address of $M token.
      * @param  registrar_ The address of Registrar.
      */
+    /// @custom:oz-upgrades-unsafe-allow constructor
     constructor(address mToken_, address registrar_) {
         _disableInitializers();
 

@@ -2,12 +2,13 @@
 
 pragma solidity 0.8.26;
 
-import { ERC20ExtendedUpgradeable } from "../../lib/common/src/ERC20ExtendedUpgradeable.sol";
+import { ERC20ExtendedUpgradeable } from "../lib/common/src/ERC20ExtendedUpgradeable.sol";
 
-import { IMTokenLike } from "../interfaces/IMTokenLike.sol";
-import { IMExtension } from "../interfaces/IMExtension.sol";
-import { ISwapFacility } from "../interfaces/ISwapFacility.sol";
-import { IERC20 } from "../../lib/common/src/interfaces/IERC20.sol";
+import { IERC20 } from "../lib/common/src/interfaces/IERC20.sol";
+
+import { IMTokenLike } from "./interfaces/IMTokenLike.sol";
+import { IMExtension } from "./interfaces/IMExtension.sol";
+import { ISwapFacility } from "./swap/interfaces/ISwapFacility.sol";
 
 abstract contract MExtensionStorageLayout {
     /// @custom:storage-location erc7201:M0.storage.MExtension
@@ -37,7 +38,7 @@ abstract contract MExtension is IMExtension, MExtensionStorageLayout, ERC20Exten
 
     /// @dev Modifier to check if caller is SwapFacility.
     modifier onlySwapFacility() {
-        if (msg.sender != _getMExtensionStorageLocation().swapFacility) revert NotSwapFacility();
+        if (msg.sender != swapFacility()) revert NotSwapFacility();
         _;
     }
 
@@ -68,15 +69,16 @@ abstract contract MExtension is IMExtension, MExtensionStorageLayout, ERC20Exten
 
     /// @inheritdoc IMExtension
     function wrap(address recipient, uint256 amount) external onlySwapFacility {
-        // NOTE: msg.sender is always SwapFacility contract.
+        // NOTE: `msg.sender` is always SwapFacility contract.
         //       `swapFacility().msgSender()` is used to ensure that the original caller is passed to `_beforeWrap`.
         _wrap(ISwapFacility(swapFacility()).msgSender(), recipient, amount);
     }
 
     /// @inheritdoc IMExtension
     function unwrap(address /* recipient */, uint256 amount) external onlySwapFacility {
-        // NOTE: msg.sender is always SwapFacility contract.
+        // NOTE: `msg.sender` is always SwapFacility contract.
         //       `swapFacility().msgSender()` is used to ensure that the original caller is passed to `_beforeWrap`.
+        // NOTE: `recipient` is not used in this function as the $M is always sent to SwapFacility contract.
         _unwrap(ISwapFacility(swapFacility()).msgSender(), amount);
     }
 
@@ -102,7 +104,7 @@ abstract contract MExtension is IMExtension, MExtensionStorageLayout, ERC20Exten
 
     /// @inheritdoc IMExtension
     function currentIndex() public view virtual returns (uint128) {
-        return _currentMIndex();
+        return IMTokenLike(mToken()).currentIndex();
     }
 
     /// @inheritdoc IMExtension
@@ -209,6 +211,8 @@ abstract contract MExtension is IMExtension, MExtensionStorageLayout, ERC20Exten
         // NOTE: Add extension-specific checks before unwrapping.
         _beforeUnwrap(account, amount);
 
+        _revertIfInsufficientBalance(account, balanceOf(account), amount);
+
         // NOTE: The behavior of `IMTokenLike.transfer` is known, so its return can be ignored.
         // NOTE: Computes the actual decrease in the $M balance of the $M Extension contract.
         //       Option 1: $M transfer from an $M earner ($M Extension in earning state) to another $M earner: round up → rounds up.
@@ -267,11 +271,6 @@ abstract contract MExtension is IMExtension, MExtensionStorageLayout, ERC20Exten
     }
 
     /* ============ Internal View/Pure Functions ============ */
-
-    /// @dev Returns the current index of the M Token.
-    function _currentMIndex() internal view returns (uint128) {
-        return IMTokenLike(mToken()).currentIndex();
-    }
 
     /**
      * @dev    Returns the M Token balance of `account`.

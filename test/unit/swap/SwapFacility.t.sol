@@ -2,15 +2,15 @@
 
 pragma solidity 0.8.26;
 
-import { Test } from "../../lib/forge-std/src/Test.sol";
-import { ERC1967Proxy } from "../../lib/openzeppelin-contracts/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+import { Test } from "../../../lib/forge-std/src/Test.sol";
 
-import { IMExtension } from "../../src/interfaces/IMExtension.sol";
-import { ISwapFacility } from "../../src/interfaces/ISwapFacility.sol";
-import { IRegistrarLike } from "../../src/interfaces/IRegistrarLike.sol";
-import { SwapFacility } from "../../src/SwapFacility.sol";
+import { Upgrades, UnsafeUpgrades } from "../../../lib/openzeppelin-foundry-upgrades/src/Upgrades.sol";
 
-import { MockM, MockMExtension, MockRegistrar } from "../utils/Mocks.sol";
+import { ISwapFacility } from "../../../src/swap/interfaces/ISwapFacility.sol";
+
+import { SwapFacility } from "../../../src/swap/SwapFacility.sol";
+
+import { MockM, MockMExtension, MockRegistrar } from "../../utils/Mocks.sol";
 
 contract SwapFacilityUnitTests is Test {
     bytes32 public constant M_SWAPPER_ROLE = keccak256("M_SWAPPER_ROLE");
@@ -30,12 +30,12 @@ contract SwapFacilityUnitTests is Test {
         mToken = new MockM();
         registrar = new MockRegistrar();
 
-        address implementation = address(new SwapFacility(address(mToken), address(registrar)));
-        ERC1967Proxy proxy = new ERC1967Proxy(
-            implementation,
-            abi.encodeWithSelector(SwapFacility.initialize.selector, owner)
+        swapFacility = SwapFacility(
+            UnsafeUpgrades.deployUUPSProxy(
+                address(new SwapFacility(address(mToken), address(registrar))),
+                abi.encodeWithSelector(SwapFacility.initialize.selector, owner)
+            )
         );
-        swapFacility = SwapFacility(address(proxy));
 
         extensionA = new MockMExtension(address(mToken), address(swapFacility));
         extensionB = new MockMExtension(address(mToken), address(swapFacility));
