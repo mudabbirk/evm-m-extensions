@@ -22,7 +22,6 @@ contract MEarnerManagerUnitTests is BaseUnitTest {
 
     // address public admin = makeAddr("admin");
     address public earnerManager = makeAddr("earnerManager");
-    address public feeRecipient = makeAddr("feeRecipient");
 
     bytes32 public constant EARNER_MANAGER_ROLE = keccak256("EARNER_MANAGER_ROLE");
 
@@ -163,6 +162,13 @@ contract MEarnerManagerUnitTests is BaseUnitTest {
         mEarnerManager.setAccountInfo(alice, true, 10_001);
     }
 
+    function test_setAccountInfo_invalidAccountInfo() external {
+        vm.expectRevert(IMEarnerManager.InvalidAccountInfo.selector);
+
+        vm.prank(earnerManager);
+        mEarnerManager.setAccountInfo(alice, false, 9_000);
+    }
+
     function test_setAccountInfo_onlyEarnerManager() external {
         vm.expectRevert(
             abi.encodeWithSelector(IAccessControl.AccessControlUnauthorizedAccount.selector, alice, EARNER_MANAGER_ROLE)
@@ -256,7 +262,7 @@ contract MEarnerManagerUnitTests is BaseUnitTest {
         assertEq(mEarnerManager.feeRateOf(bob), 1_000);
 
         vm.prank(earnerManager);
-        mEarnerManager.setAccountInfo(alice, false, 1_000);
+        mEarnerManager.setAccountInfo(alice, false, 0);
 
         vm.prank(earnerManager);
         mEarnerManager.setAccountInfo(bob, true, 1_000);
@@ -350,7 +356,7 @@ contract MEarnerManagerUnitTests is BaseUnitTest {
         mEarnerManager.setFeeRecipient(address(0));
     }
 
-    function test_setYieldFeeRecipient_noUpdate() external {
+    function test_setFeeRecipient_noUpdate() external {
         assertEq(mEarnerManager.feeRecipient(), feeRecipient);
 
         vm.prank(earnerManager);
