@@ -36,11 +36,38 @@ contract MSpokeYieldFeeHarness is MSpokeYieldFee {
         );
     }
 
-    function currentBlockTimestamp() external view returns (uint40) {
+    function latestEarnerRateAccrualTimestamp() external view returns (uint40) {
         return _latestEarnerRateAccrualTimestamp();
     }
 
     function currentEarnerRate() external view returns (uint32) {
         return _currentEarnerRate();
+    }
+
+    function setAccountOf(address account, uint256 balance, uint112 principal) external {
+        MYieldFeeStorageStruct storage $ = _getMYieldFeeStorageLocation();
+
+        $.balanceOf[account] = balance;
+        $.principalOf[account] = principal;
+    }
+
+    function setLatestIndex(uint256 latestIndex_) external {
+        _getMYieldFeeStorageLocation().latestIndex = uint128(latestIndex_);
+    }
+
+    function setLatestRate(uint256 latestRate_) external {
+        _getMYieldFeeStorageLocation().latestRate = uint32(latestRate_);
+    }
+
+    function setLatestUpdateTimestamp(uint256 latestUpdateTimestamp_) external {
+        _getMYieldFeeStorageLocation().latestUpdateTimestamp = uint40(latestUpdateTimestamp_);
+    }
+
+    function setTotalSupply(uint256 totalSupply_) external {
+        _getMYieldFeeStorageLocation().totalSupply = totalSupply_;
+    }
+
+    function setTotalPrincipal(uint112 totalPrincipal_) external {
+        _getMYieldFeeStorageLocation().totalPrincipal = totalPrincipal_;
     }
 }

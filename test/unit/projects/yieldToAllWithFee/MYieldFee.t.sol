@@ -22,7 +22,6 @@ import { IERC20Extended } from "../../../../lib/common/src/interfaces/IERC20Exte
 
 import { MYieldFeeHarness } from "../../../harness/MYieldFeeHarness.sol";
 import { BaseUnitTest } from "../../../utils/BaseUnitTest.sol";
-import { console2 } from "../../../../lib/forge-std/src/Test.sol";
 
 contract MYieldFeeUnitTests is BaseUnitTest {
     // Roles
@@ -781,14 +780,14 @@ contract MYieldFeeUnitTests is BaseUnitTest {
         assertEq(mYieldFee.earnerRate(), _getEarnerRate(mEarnerRate, YIELD_FEE_RATE));
     }
 
-    /* ============ _currentBlockTimestamp ============ */
+    /* ============ _latestEarnerRateAccrualTimestamp ============ */
 
-    function test_currentBlockTimestamp() external {
+    function test_latestEarnerRateAccrualTimestamp() external {
         uint40 timestamp = uint40(22470340);
 
         vm.warp(timestamp);
 
-        assertEq(mYieldFee.currentBlockTimestamp(), timestamp);
+        assertEq(mYieldFee.latestEarnerRateAccrualTimestamp(), timestamp);
     }
 
     /* ============ _currentEarnerRate ============ */
@@ -1607,7 +1606,7 @@ contract MYieldFeeUnitTests is BaseUnitTest {
         // );
     }
 
-    /* ============ Fuzz Utils ============ */
+    /* ============ currentIndex Utils ============ */
 
     function _getCurrentIndex(
         uint128 latestIndex,
@@ -1620,11 +1619,13 @@ contract MYieldFeeUnitTests is BaseUnitTest {
                     latestIndex,
                     ContinuousIndexingMath.getContinuousIndex(
                         ContinuousIndexingMath.convertFromBasisPoints(latestRate),
-                        uint32(block.timestamp - latestUpdateTimestamp)
+                        uint32(mYieldFee.latestEarnerRateAccrualTimestamp() - latestUpdateTimestamp)
                     )
                 )
             );
     }
+
+    /* ============ Fuzz Utils ============ */
 
     function _setupAccount(
         address account,

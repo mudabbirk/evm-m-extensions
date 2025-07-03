@@ -34,7 +34,7 @@ contract MYieldFeeHarness is MYieldFee {
         );
     }
 
-    function currentBlockTimestamp() external view returns (uint40) {
+    function latestEarnerRateAccrualTimestamp() external view returns (uint40) {
         return _latestEarnerRateAccrualTimestamp();
     }
 

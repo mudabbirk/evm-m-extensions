@@ -190,13 +190,14 @@ contract MYieldFee is IContinuousIndexing, IMYieldFee, AccessControlUpgradeable,
         uint32 rate_ = earnerRate();
 
         MYieldFeeStorageStruct storage $ = _getMYieldFeeStorageLocation();
+        uint40 latestAccrualTimestamp_ = _latestEarnerRateAccrualTimestamp();
 
-        if ($.latestUpdateTimestamp == block.timestamp && $.latestRate == rate_) return $.latestIndex;
+        if ($.latestUpdateTimestamp == latestAccrualTimestamp_ && $.latestRate == rate_) return $.latestIndex;
 
         // NOTE: `currentIndex()` depends on `_latestRate`, so only update it after this.
         $.latestIndex = currentIndex_ = currentIndex();
         $.latestRate = rate_;
-        $.latestUpdateTimestamp = _latestEarnerRateAccrualTimestamp();
+        $.latestUpdateTimestamp = latestAccrualTimestamp_;
 
         emit IndexUpdated(currentIndex_, rate_);
     }
