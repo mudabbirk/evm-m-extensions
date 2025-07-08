@@ -6,7 +6,8 @@ import { ContinuousIndexingMath } from "../../../../lib/common/src/libs/Continuo
 import { IndexingMath } from "../../../../lib/common/src/libs/IndexingMath.sol";
 import { UIntMath } from "../../../../lib/common/src/libs/UIntMath.sol";
 
-import { Upgrades, UnsafeUpgrades } from "../../../../lib/openzeppelin-foundry-upgrades/src/Upgrades.sol";
+import { Options } from "../../../../lib/openzeppelin-foundry-upgrades/src/Options.sol";
+import { Upgrades } from "../../../../lib/openzeppelin-foundry-upgrades/src/Upgrades.sol";
 
 import { IMTokenLike } from "../../../../src/interfaces/IMTokenLike.sol";
 
@@ -25,22 +26,24 @@ contract MSpokeYieldFeeUnitTests is BaseUnitTest {
     function setUp() public override {
         super.setUp();
 
+        Options memory deployOptions;
+        deployOptions.constructorData = abi.encode(address(mToken), address(swapFacility), address(rateOracle));
+
         mYieldFee = MSpokeYieldFeeHarness(
-            Upgrades.deployUUPSProxy(
+            Upgrades.deployTransparentProxy(
                 "MSpokeYieldFeeHarness.sol:MSpokeYieldFeeHarness",
+                admin,
                 abi.encodeWithSelector(
                     MSpokeYieldFeeHarness.initialize.selector,
                     "MSpokeYieldFee",
                     "MSYF",
-                    address(mToken),
-                    address(swapFacility),
                     YIELD_FEE_RATE,
                     feeRecipient,
                     admin,
                     yieldFeeManager,
-                    claimRecipientManager,
-                    address(rateOracle)
-                )
+                    claimRecipientManager
+                ),
+                deployOptions
             )
         );
 
@@ -60,27 +63,8 @@ contract MSpokeYieldFeeUnitTests is BaseUnitTest {
     }
 
     function test_initialize_zeroRateOracle() external {
-        address implementation = address(new MSpokeYieldFeeHarness());
-
         vm.expectRevert(IMSpokeYieldFee.ZeroRateOracle.selector);
-        MSpokeYieldFeeHarness(
-            UnsafeUpgrades.deployUUPSProxy(
-                implementation,
-                abi.encodeWithSelector(
-                    MSpokeYieldFeeHarness.initialize.selector,
-                    "MSpokeYieldFee",
-                    "MSYF",
-                    address(mToken),
-                    address(swapFacility),
-                    YIELD_FEE_RATE,
-                    feeRecipient,
-                    admin,
-                    yieldFeeManager,
-                    claimRecipientManager,
-                    address(0)
-                )
-            )
-        );
+        new MSpokeYieldFeeHarness(address(mToken), address(swapFacility), address(0));
     }
 
     /* ============ currentIndex ============ */

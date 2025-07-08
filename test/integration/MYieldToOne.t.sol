@@ -21,19 +21,19 @@ contract MYieldToOneIntegrationTests is BaseIntegrationTest {
         _fundAccounts();
 
         mYieldToOne = MYieldToOne(
-            Upgrades.deployUUPSProxy(
+            Upgrades.deployTransparentProxy(
                 "MYieldToOne.sol:MYieldToOne",
+                admin,
                 abi.encodeWithSelector(
                     MYieldToOne.initialize.selector,
                     NAME,
                     SYMBOL,
-                    address(mToken),
-                    address(swapFacility),
                     yieldRecipient,
                     admin,
                     blacklistManager,
                     yieldRecipientManager
-                )
+                ),
+                mExtensionDeployOptions
             )
         );
     }

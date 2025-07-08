@@ -5,6 +5,8 @@ pragma solidity 0.8.26;
 import { Test } from "../../lib/forge-std/src/Test.sol";
 
 import { ContinuousIndexingMath } from "../../lib/common/src/libs/ContinuousIndexingMath.sol";
+
+import { Options } from "../../lib/openzeppelin-foundry-upgrades/src/Options.sol";
 import { Upgrades, UnsafeUpgrades } from "../../lib/openzeppelin-foundry-upgrades/src/Upgrades.sol";
 
 import { IMExtension } from "../../src/interfaces/IMExtension.sol";
@@ -75,6 +77,8 @@ contract BaseIntegrationTest is Helpers, Test {
     string public constant NAME = "M USD Extension";
     string public constant SYMBOL = "MUSDE";
 
+    Options public mExtensionDeployOptions;
+
     function setUp() public virtual {
         (alice, aliceKey) = makeAddrAndKey("alice");
         accounts = [alice, bob, carol, charlie, david];
@@ -92,11 +96,14 @@ contract BaseIntegrationTest is Helpers, Test {
         );
 
         swapFacility = SwapFacility(
-            UnsafeUpgrades.deployUUPSProxy(
+            UnsafeUpgrades.deployTransparentProxy(
                 address(new SwapFacility(address(mToken), address(registrar), address(swapAdapter))),
+                admin,
                 abi.encodeWithSelector(SwapFacility.initialize.selector, admin)
             )
         );
+
+        mExtensionDeployOptions.constructorData = abi.encode(address(mToken), address(swapFacility));
 
         vm.startPrank(admin);
 

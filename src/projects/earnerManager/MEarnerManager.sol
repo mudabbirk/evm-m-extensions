@@ -68,14 +68,23 @@ contract MEarnerManager is IMEarnerManager, AccessControlUpgradeable, MEarnerMan
     /// @inheritdoc IMEarnerManager
     bytes32 public constant EARNER_MANAGER_ROLE = keccak256("EARNER_MANAGER_ROLE");
 
+    /* ============ Constructor ============ */
+
+    /**
+     * @custom:oz-upgrades-unsafe-allow constructor
+     * @notice Constructs MYieldFee Implementation contract
+     * @dev    Sets immutable storage.
+     * @param  mToken       The address of $M token.
+     * @param  swapFacility The address of Swap Facility.
+     */
+    constructor(address mToken, address swapFacility) MExtension(mToken, swapFacility) {}
+
     /* ============ Initializer ============ */
 
     /**
      * @dev   Initializes the M extension token with earner manager role and different fee tiers.
      * @param name               The name of the token (e.g. "M Earner Manager").
      * @param symbol             The symbol of the token (e.g. "MEM").
-     * @param mToken             The address of an M Token.
-     * @param swapFacility       The address of the Swap Facility.
      * @param admin              The address administrating the M extension. Can grant and revoke roles.
      * @param earnerManager      The address of earner manager
      * @param feeRecipient_      The address that will receive the fees from all the earners.
@@ -83,8 +92,6 @@ contract MEarnerManager is IMEarnerManager, AccessControlUpgradeable, MEarnerMan
     function initialize(
         string memory name,
         string memory symbol,
-        address mToken,
-        address swapFacility,
         address admin,
         address earnerManager,
         address feeRecipient_
@@ -92,7 +99,7 @@ contract MEarnerManager is IMEarnerManager, AccessControlUpgradeable, MEarnerMan
         if (admin == address(0)) revert ZeroAdmin();
         if (earnerManager == address(0)) revert ZeroEarnerManager();
 
-        __MExtension_init(name, symbol, mToken, swapFacility);
+        __MExtension_init(name, symbol);
 
         _setFeeRecipient(feeRecipient_);
 

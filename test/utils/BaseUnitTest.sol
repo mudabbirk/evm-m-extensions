@@ -4,6 +4,8 @@ pragma solidity 0.8.26;
 
 import { Test } from "../../lib/forge-std/src/Test.sol";
 
+import { Options } from "../../lib/openzeppelin-foundry-upgrades/src/Options.sol";
+
 import { ContinuousIndexingMath } from "../../lib/common/src/libs/ContinuousIndexingMath.sol";
 import { IndexingMath } from "../../lib/common/src/libs/IndexingMath.sol";
 import { Upgrades, UnsafeUpgrades } from "../../lib/openzeppelin-foundry-upgrades/src/Upgrades.sol";
@@ -53,6 +55,8 @@ contract BaseUnitTest is Helpers, Test {
 
     address[] public accounts;
 
+    Options public mExtensionDeployOptions;
+
     function setUp() public virtual {
         vm.warp(startTimestamp);
 
@@ -62,11 +66,14 @@ contract BaseUnitTest is Helpers, Test {
         registrar = new MockRegistrar();
 
         swapFacility = SwapFacility(
-            UnsafeUpgrades.deployUUPSProxy(
+            UnsafeUpgrades.deployTransparentProxy(
                 address(new SwapFacility(address(mToken), address(registrar), makeAddr("swapAdapter"))),
+                admin,
                 abi.encodeWithSelector(SwapFacility.initialize.selector, admin)
             )
         );
+
+        mExtensionDeployOptions.constructorData = abi.encode(address(mToken), address(swapFacility));
 
         mToken.setEarnerRate(M_EARNER_RATE);
 

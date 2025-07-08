@@ -20,7 +20,6 @@ import { BaseUnitTest } from "../../utils/BaseUnitTest.sol";
 contract MEarnerManagerUnitTests is BaseUnitTest {
     MEarnerManagerHarness public mEarnerManager;
 
-    // address public admin = makeAddr("admin");
     address public earnerManager = makeAddr("earnerManager");
 
     bytes32 public constant EARNER_MANAGER_ROLE = keccak256("EARNER_MANAGER_ROLE");
@@ -31,18 +30,18 @@ contract MEarnerManagerUnitTests is BaseUnitTest {
         mToken.setCurrentIndex(11e11);
 
         mEarnerManager = MEarnerManagerHarness(
-            Upgrades.deployUUPSProxy(
+            Upgrades.deployTransparentProxy(
                 "MEarnerManagerHarness.sol:MEarnerManagerHarness",
+                admin,
                 abi.encodeWithSelector(
                     MEarnerManagerHarness.initialize.selector,
                     "MEarnerManager",
                     "MEM",
-                    address(mToken),
-                    address(swapFacility),
                     admin,
                     earnerManager,
                     feeRecipient
-                )
+                ),
+                mExtensionDeployOptions
             )
         );
 
@@ -62,40 +61,18 @@ contract MEarnerManagerUnitTests is BaseUnitTest {
         assertTrue(mEarnerManager.hasRole(EARNER_MANAGER_ROLE, earnerManager));
     }
 
-    function test_initialize_zeroMToken() external {
-        address implementation = address(new MEarnerManagerHarness());
-
-        vm.expectRevert(IMExtension.ZeroMToken.selector);
-        MEarnerManagerHarness(
-            UnsafeUpgrades.deployUUPSProxy(
-                implementation,
-                abi.encodeWithSelector(
-                    MEarnerManagerHarness.initialize.selector,
-                    "MEarnerManager",
-                    "MEM",
-                    address(0),
-                    address(swapFacility),
-                    admin,
-                    earnerManager,
-                    feeRecipient
-                )
-            )
-        );
-    }
-
     function test_initialize_zeroAdmin() external {
-        address implementation = address(new MEarnerManagerHarness());
+        address implementation = address(new MEarnerManagerHarness(address(mToken), address(swapFacility)));
 
         vm.expectRevert(IMEarnerManager.ZeroAdmin.selector);
         MEarnerManagerHarness(
-            UnsafeUpgrades.deployUUPSProxy(
+            UnsafeUpgrades.deployTransparentProxy(
                 implementation,
+                admin,
                 abi.encodeWithSelector(
                     MEarnerManagerHarness.initialize.selector,
                     "MEarnerManager",
                     "MEM",
-                    address(mToken),
-                    address(swapFacility),
                     address(0),
                     earnerManager,
                     feeRecipient
@@ -105,18 +82,17 @@ contract MEarnerManagerUnitTests is BaseUnitTest {
     }
 
     function test_initialize_zeroEarnerManager() external {
-        address implementation = address(new MEarnerManagerHarness());
+        address implementation = address(new MEarnerManagerHarness(address(mToken), address(swapFacility)));
 
         vm.expectRevert(IMEarnerManager.ZeroEarnerManager.selector);
         MEarnerManagerHarness(
-            UnsafeUpgrades.deployUUPSProxy(
+            UnsafeUpgrades.deployTransparentProxy(
                 implementation,
+                admin,
                 abi.encodeWithSelector(
                     MEarnerManagerHarness.initialize.selector,
                     "MEarnerManager",
                     "MEM",
-                    address(mToken),
-                    address(swapFacility),
                     admin,
                     address(0),
                     feeRecipient
@@ -126,18 +102,17 @@ contract MEarnerManagerUnitTests is BaseUnitTest {
     }
 
     function test_initialize_zeroFeeRecipient() external {
-        address implementation = address(new MEarnerManagerHarness());
+        address implementation = address(new MEarnerManagerHarness(address(mToken), address(swapFacility)));
 
         vm.expectRevert(IMEarnerManager.ZeroFeeRecipient.selector);
         MEarnerManagerHarness(
-            UnsafeUpgrades.deployUUPSProxy(
+            UnsafeUpgrades.deployTransparentProxy(
                 implementation,
+                admin,
                 abi.encodeWithSelector(
                     MEarnerManagerHarness.initialize.selector,
                     "MEarnerManager",
                     "MEM",
-                    address(mToken),
-                    address(swapFacility),
                     admin,
                     earnerManager,
                     address(0)
@@ -146,7 +121,7 @@ contract MEarnerManagerUnitTests is BaseUnitTest {
         );
     }
 
-    // /* ============ setAccountInfo ============ */
+    /* ============ setAccountInfo ============ */
 
     function test_setAccountInfo_zeroYieldRecipient() external {
         vm.expectRevert(IMEarnerManager.ZeroAccount.selector);

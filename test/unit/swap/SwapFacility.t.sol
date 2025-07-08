@@ -31,8 +31,9 @@ contract SwapFacilityUnitTests is Test {
         registrar = new MockRegistrar();
 
         swapFacility = SwapFacility(
-            UnsafeUpgrades.deployUUPSProxy(
+            UnsafeUpgrades.deployTransparentProxy(
                 address(new SwapFacility(address(mToken), address(registrar), swapAdapter)),
+                owner,
                 abi.encodeWithSelector(SwapFacility.initialize.selector, owner)
             )
         );

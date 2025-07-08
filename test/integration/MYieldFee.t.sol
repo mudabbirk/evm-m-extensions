@@ -21,20 +21,20 @@ contract MYieldFeeIntegrationTests is BaseIntegrationTest {
         _fundAccounts();
 
         mYieldFee = MYieldFee(
-            Upgrades.deployUUPSProxy(
+            Upgrades.deployTransparentProxy(
                 "MYieldFee.sol:MYieldFee",
+                admin,
                 abi.encodeWithSelector(
                     MYieldFee.initialize.selector,
                     NAME,
                     SYMBOL,
-                    address(mToken),
-                    address(swapFacility),
                     YIELD_FEE_RATE,
                     feeRecipient,
                     admin,
                     yieldFeeManager,
                     claimRecipientManager
-                )
+                ),
+                mExtensionDeployOptions
             )
         );
     }

@@ -35,20 +35,20 @@ contract MYieldFeeUnitTests is BaseUnitTest {
         super.setUp();
 
         mYieldFee = MYieldFeeHarness(
-            Upgrades.deployUUPSProxy(
+            Upgrades.deployTransparentProxy(
                 "MYieldFeeHarness.sol:MYieldFeeHarness",
+                admin,
                 abi.encodeWithSelector(
                     MYieldFeeHarness.initialize.selector,
                     "MYieldFee",
                     "MYF",
-                    address(mToken),
-                    address(swapFacility),
                     YIELD_FEE_RATE,
                     feeRecipient,
                     admin,
                     yieldFeeManager,
                     claimRecipientManager
-                )
+                ),
+                mExtensionDeployOptions
             )
         );
 
@@ -67,42 +67,18 @@ contract MYieldFeeUnitTests is BaseUnitTest {
         assertTrue(mYieldFee.hasRole(CLAIM_RECIPIENT_MANAGER_ROLE, claimRecipientManager));
     }
 
-    function test_initialize_zeroMToken() external {
-        address implementation = address(new MYieldFeeHarness());
-
-        vm.expectRevert(IMExtension.ZeroMToken.selector);
-        MYieldFeeHarness(
-            UnsafeUpgrades.deployUUPSProxy(
-                implementation,
-                abi.encodeWithSelector(
-                    MYieldFeeHarness.initialize.selector,
-                    "MYieldFee",
-                    "MYF",
-                    address(0),
-                    address(swapFacility),
-                    YIELD_FEE_RATE,
-                    feeRecipient,
-                    admin,
-                    yieldFeeManager,
-                    claimRecipientManager
-                )
-            )
-        );
-    }
-
     function test_initialize_zeroYieldFeeRecipient() external {
-        address implementation = address(new MYieldFeeHarness());
+        address implementation = address(new MYieldFeeHarness(address(mToken), address(swapFacility)));
 
         vm.expectRevert(IMYieldFee.ZeroFeeRecipient.selector);
         MYieldFeeHarness(
-            UnsafeUpgrades.deployUUPSProxy(
+            UnsafeUpgrades.deployTransparentProxy(
                 implementation,
+                admin,
                 abi.encodeWithSelector(
                     MYieldFeeHarness.initialize.selector,
                     "MYieldFee",
                     "MYF",
-                    address(mToken),
-                    address(swapFacility),
                     YIELD_FEE_RATE,
                     address(0),
                     admin,
@@ -114,18 +90,17 @@ contract MYieldFeeUnitTests is BaseUnitTest {
     }
 
     function test_initialize_zeroAdmin() external {
-        address implementation = address(new MYieldFeeHarness());
+        address implementation = address(new MYieldFeeHarness(address(mToken), address(swapFacility)));
 
         vm.expectRevert(IMYieldFee.ZeroAdmin.selector);
         MYieldFeeHarness(
-            UnsafeUpgrades.deployUUPSProxy(
+            UnsafeUpgrades.deployTransparentProxy(
                 implementation,
+                admin,
                 abi.encodeWithSelector(
                     MYieldFeeHarness.initialize.selector,
                     "MYieldFee",
                     "MYF",
-                    address(mToken),
-                    address(swapFacility),
                     YIELD_FEE_RATE,
                     feeRecipient,
                     address(0),
@@ -137,18 +112,17 @@ contract MYieldFeeUnitTests is BaseUnitTest {
     }
 
     function test_initialize_zeroYieldFeeManager() external {
-        address implementation = address(new MYieldFeeHarness());
+        address implementation = address(new MYieldFeeHarness(address(mToken), address(swapFacility)));
 
         vm.expectRevert(IMYieldFee.ZeroFeeManager.selector);
         MYieldFeeHarness(
-            UnsafeUpgrades.deployUUPSProxy(
+            UnsafeUpgrades.deployTransparentProxy(
                 implementation,
+                admin,
                 abi.encodeWithSelector(
                     MYieldFeeHarness.initialize.selector,
                     "MYieldFee",
                     "MYF",
-                    address(mToken),
-                    address(swapFacility),
                     YIELD_FEE_RATE,
                     feeRecipient,
                     admin,
@@ -160,18 +134,17 @@ contract MYieldFeeUnitTests is BaseUnitTest {
     }
 
     function test_initialize_zeroClaimRecipientManager() external {
-        address implementation = address(new MYieldFeeHarness());
+        address implementation = address(new MYieldFeeHarness(address(mToken), address(swapFacility)));
 
         vm.expectRevert(IMYieldFee.ZeroClaimRecipientManager.selector);
         MYieldFeeHarness(
-            UnsafeUpgrades.deployUUPSProxy(
+            UnsafeUpgrades.deployTransparentProxy(
                 implementation,
+                admin,
                 abi.encodeWithSelector(
                     MYieldFeeHarness.initialize.selector,
                     "MYieldFee",
                     "MYF",
-                    address(mToken),
-                    address(swapFacility),
                     YIELD_FEE_RATE,
                     feeRecipient,
                     admin,

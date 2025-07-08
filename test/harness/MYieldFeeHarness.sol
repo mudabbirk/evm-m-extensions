@@ -6,32 +6,18 @@ import { MYieldFee } from "../../src/projects/yieldToAllWithFee/MYieldFee.sol";
 
 contract MYieldFeeHarness is MYieldFee {
     /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor() {
-        _disableInitializers();
-    }
+    constructor(address mToken, address swapFacility) MYieldFee(mToken, swapFacility) {}
 
     function initialize(
         string memory name,
         string memory symbol,
-        address mToken,
-        address swapFacility,
         uint16 feeRate,
         address feeRecipient,
         address admin,
         address yieldFeeManager,
         address claimRecipientManager
     ) public override initializer {
-        super.initialize(
-            name,
-            symbol,
-            mToken,
-            swapFacility,
-            feeRate,
-            feeRecipient,
-            admin,
-            yieldFeeManager,
-            claimRecipientManager
-        );
+        super.initialize(name, symbol, feeRate, feeRecipient, admin, yieldFeeManager, claimRecipientManager);
     }
 
     function latestEarnerRateAccrualTimestamp() external view returns (uint40) {

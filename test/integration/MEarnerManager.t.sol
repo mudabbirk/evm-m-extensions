@@ -19,18 +19,18 @@ contract MEarnerManagerIntegrationTests is BaseIntegrationTest {
         _fundAccounts();
 
         mEarnerManager = MEarnerManager(
-            Upgrades.deployUUPSProxy(
+            Upgrades.deployTransparentProxy(
                 "MEarnerManager.sol:MEarnerManager",
+                admin,
                 abi.encodeWithSelector(
                     MEarnerManager.initialize.selector,
                     NAME,
                     SYMBOL,
-                    address(mToken),
-                    address(swapFacility),
                     admin,
                     earnerManager,
                     feeRecipient
-                )
+                ),
+                mExtensionDeployOptions
             )
         );
     }

@@ -35,19 +35,19 @@ contract MYieldToOneUnitTests is BaseUnitTest {
         super.setUp();
 
         mYieldToOne = MYieldToOne(
-            Upgrades.deployUUPSProxy(
+            Upgrades.deployTransparentProxy(
                 "MYieldToOne.sol:MYieldToOne",
+                admin,
                 abi.encodeWithSelector(
                     MYieldToOne.initialize.selector,
                     NAME,
                     SYMBOL,
-                    address(mToken),
-                    address(swapFacility),
                     yieldRecipient,
                     admin,
                     blacklistManager,
                     yieldRecipientManager
-                )
+                ),
+                mExtensionDeployOptions
             )
         );
 
@@ -68,41 +68,18 @@ contract MYieldToOneUnitTests is BaseUnitTest {
         assertTrue(IAccessControl(address(mYieldToOne)).hasRole(YIELD_RECIPIENT_MANAGER_ROLE, yieldRecipientManager));
     }
 
-    function test_initialize_zeroMToken() external {
-        address implementation = address(new MYieldToOne());
-
-        vm.expectRevert(IMExtension.ZeroMToken.selector);
-        MYieldToOne(
-            UnsafeUpgrades.deployUUPSProxy(
-                implementation,
-                abi.encodeWithSelector(
-                    MYieldToOne.initialize.selector,
-                    NAME,
-                    SYMBOL,
-                    address(0),
-                    address(swapFacility),
-                    address(yieldRecipient),
-                    admin,
-                    blacklistManager,
-                    yieldRecipientManager
-                )
-            )
-        );
-    }
-
     function test_initialize_zeroYieldRecipient() external {
-        address implementation = address(new MYieldToOne());
+        address implementation = address(new MYieldToOne(address(mToken), address(swapFacility)));
 
         vm.expectRevert(IMYieldToOne.ZeroYieldRecipient.selector);
         MYieldToOne(
-            UnsafeUpgrades.deployUUPSProxy(
+            UnsafeUpgrades.deployTransparentProxy(
                 implementation,
+                admin,
                 abi.encodeWithSelector(
                     MYieldToOne.initialize.selector,
                     NAME,
                     SYMBOL,
-                    address(mToken),
-                    address(swapFacility),
                     address(0),
                     admin,
                     blacklistManager,
@@ -113,18 +90,17 @@ contract MYieldToOneUnitTests is BaseUnitTest {
     }
 
     function test_initialize_zeroDefaultAdmin() external {
-        address implementation = address(new MYieldToOne());
+        address implementation = address(new MYieldToOne(address(mToken), address(swapFacility)));
 
         vm.expectRevert(IMYieldToOne.ZeroAdmin.selector);
         MYieldToOne(
-            UnsafeUpgrades.deployUUPSProxy(
+            UnsafeUpgrades.deployTransparentProxy(
                 implementation,
+                admin,
                 abi.encodeWithSelector(
                     MYieldToOne.initialize.selector,
                     NAME,
                     SYMBOL,
-                    address(mToken),
-                    address(swapFacility),
                     address(yieldRecipient),
                     address(0),
                     blacklistManager,
@@ -135,18 +111,17 @@ contract MYieldToOneUnitTests is BaseUnitTest {
     }
 
     function test_initialize_zeroBlacklistManager() external {
-        address implementation = address(new MYieldToOne());
+        address implementation = address(new MYieldToOne(address(mToken), address(swapFacility)));
 
         vm.expectRevert(IBlacklistable.ZeroBlacklistManager.selector);
         MYieldToOne(
-            UnsafeUpgrades.deployUUPSProxy(
+            UnsafeUpgrades.deployTransparentProxy(
                 implementation,
+                admin,
                 abi.encodeWithSelector(
                     MYieldToOne.initialize.selector,
                     NAME,
                     SYMBOL,
-                    address(mToken),
-                    address(swapFacility),
                     address(yieldRecipient),
                     admin,
                     address(0),
@@ -157,18 +132,17 @@ contract MYieldToOneUnitTests is BaseUnitTest {
     }
 
     function test_initialize_zeroYieldRecipientManager() external {
-        address implementation = address(new MYieldToOne());
+        address implementation = address(new MYieldToOne(address(mToken), address(swapFacility)));
 
         vm.expectRevert(IMYieldToOne.ZeroYieldRecipientManager.selector);
         MYieldToOne(
-            UnsafeUpgrades.deployUUPSProxy(
+            UnsafeUpgrades.deployTransparentProxy(
                 implementation,
+                admin,
                 abi.encodeWithSelector(
                     MYieldToOne.initialize.selector,
                     NAME,
                     SYMBOL,
-                    address(mToken),
-                    address(swapFacility),
                     address(yieldRecipient),
                     admin,
                     blacklistManager,

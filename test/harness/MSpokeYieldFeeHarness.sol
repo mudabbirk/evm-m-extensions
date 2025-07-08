@@ -6,34 +6,22 @@ import { MSpokeYieldFee } from "../../src/projects/yieldToAllWithFee/MSpokeYield
 
 contract MSpokeYieldFeeHarness is MSpokeYieldFee {
     /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor() {
-        _disableInitializers();
-    }
+    constructor(
+        address mToken,
+        address swapFacility,
+        address rateOracle
+    ) MSpokeYieldFee(mToken, swapFacility, rateOracle) {}
 
     function initialize(
         string memory name,
         string memory symbol,
-        address mToken,
-        address swapFacility,
         uint16 feeRate,
         address feeRecipient,
         address admin,
         address yieldFeeManager,
-        address claimRecipientManager,
-        address rateOracle
+        address claimRecipientManager
     ) public override initializer {
-        super.initialize(
-            name,
-            symbol,
-            mToken,
-            swapFacility,
-            feeRate,
-            feeRecipient,
-            admin,
-            yieldFeeManager,
-            claimRecipientManager,
-            rateOracle
-        );
+        super.initialize(name, symbol, feeRate, feeRecipient, admin, yieldFeeManager, claimRecipientManager);
     }
 
     function latestEarnerRateAccrualTimestamp() external view returns (uint40) {

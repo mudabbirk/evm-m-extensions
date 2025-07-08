@@ -24,8 +24,9 @@ contract BlacklistableUnitTests is BaseUnitTest {
         super.setUp();
 
         blacklistable = BlacklistableHarness(
-            Upgrades.deployUUPSProxy(
+            Upgrades.deployTransparentProxy(
                 "BlacklistableHarness.sol:BlacklistableHarness",
+                admin,
                 abi.encodeWithSelector(BlacklistableHarness.initialize.selector, blacklistManager)
             )
         );
@@ -41,8 +42,9 @@ contract BlacklistableUnitTests is BaseUnitTest {
         address implementation = address(new BlacklistableHarness());
 
         vm.expectRevert(IBlacklistable.ZeroBlacklistManager.selector);
-        UnsafeUpgrades.deployUUPSProxy(
+        UnsafeUpgrades.deployTransparentProxy(
             implementation,
+            admin,
             abi.encodeWithSelector(BlacklistableHarness.initialize.selector, address(0))
         );
     }
