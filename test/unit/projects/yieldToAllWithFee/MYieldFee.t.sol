@@ -24,11 +24,6 @@ import { MYieldFeeHarness } from "../../../harness/MYieldFeeHarness.sol";
 import { BaseUnitTest } from "../../../utils/BaseUnitTest.sol";
 
 contract MYieldFeeUnitTests is BaseUnitTest {
-    // Roles
-    bytes32 public constant FEE_MANAGER_ROLE = keccak256("FEE_MANAGER_ROLE");
-    bytes32 public constant YIELD_RECIPIENT_MANAGER_ROLE = keccak256("YIELD_RECIPIENT_MANAGER_ROLE");
-    bytes32 public constant CLAIM_RECIPIENT_MANAGER_ROLE = keccak256("CLAIM_RECIPIENT_MANAGER_ROLE");
-
     MYieldFeeHarness public mYieldFee;
 
     function setUp() public override {

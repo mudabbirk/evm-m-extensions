@@ -20,10 +20,6 @@ import { BaseUnitTest } from "../../utils/BaseUnitTest.sol";
 contract MEarnerManagerUnitTests is BaseUnitTest {
     MEarnerManagerHarness public mEarnerManager;
 
-    address public earnerManager = makeAddr("earnerManager");
-
-    bytes32 public constant EARNER_MANAGER_ROLE = keccak256("EARNER_MANAGER_ROLE");
-
     function setUp() public override {
         super.setUp();
 

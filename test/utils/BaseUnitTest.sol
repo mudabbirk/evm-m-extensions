@@ -25,7 +25,12 @@ contract BaseUnitTest is Helpers, Test {
     uint56 public constant EXP_SCALED_ONE = 1e12;
 
     bytes32 public constant DEFAULT_ADMIN_ROLE = 0x00;
+    bytes32 public constant BLACKLIST_MANAGER_ROLE = keccak256("BLACKLIST_MANAGER_ROLE");
+    bytes32 public constant CLAIM_RECIPIENT_MANAGER_ROLE = keccak256("CLAIM_RECIPIENT_MANAGER_ROLE");
+    bytes32 public constant EARNER_MANAGER_ROLE = keccak256("EARNER_MANAGER_ROLE");
+    bytes32 public constant FEE_MANAGER_ROLE = keccak256("FEE_MANAGER_ROLE");
     bytes32 public constant M_SWAPPER_ROLE = keccak256("M_SWAPPER_ROLE");
+    bytes32 public constant YIELD_RECIPIENT_MANAGER_ROLE = keccak256("YIELD_RECIPIENT_MANAGER_ROLE");
 
     MockM public mToken;
     MockRateOracle public rateOracle;
@@ -38,6 +43,7 @@ contract BaseUnitTest is Helpers, Test {
 
     address public admin = makeAddr("admin");
     address public blacklistManager = makeAddr("blacklistManager");
+    address public earnerManager = makeAddr("earnerManager");
     address public yieldRecipient = makeAddr("yieldRecipient");
     address public yieldRecipientManager = makeAddr("yieldRecipientManager");
 

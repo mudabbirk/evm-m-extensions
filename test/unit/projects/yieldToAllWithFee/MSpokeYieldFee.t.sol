@@ -19,8 +19,6 @@ import { MSpokeYieldFeeHarness } from "../../../harness/MSpokeYieldFeeHarness.so
 import { BaseUnitTest } from "../../../utils/BaseUnitTest.sol";
 
 contract MSpokeYieldFeeUnitTests is BaseUnitTest {
-    bytes32 public constant FEE_MANAGER_ROLE = keccak256("FEE_MANAGER_ROLE");
-
     MSpokeYieldFeeHarness public mYieldFee;
 
     function setUp() public override {
@@ -59,6 +57,7 @@ contract MSpokeYieldFeeUnitTests is BaseUnitTest {
         assertEq(mYieldFee.feeRecipient(), feeRecipient);
         assertTrue(mYieldFee.hasRole(DEFAULT_ADMIN_ROLE, admin));
         assertTrue(mYieldFee.hasRole(FEE_MANAGER_ROLE, yieldFeeManager));
+        assertTrue(mYieldFee.hasRole(CLAIM_RECIPIENT_MANAGER_ROLE, claimRecipientManager));
         assertEq(mYieldFee.rateOracle(), address(rateOracle));
     }
 

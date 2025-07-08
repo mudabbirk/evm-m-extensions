@@ -22,10 +22,6 @@ import { IERC20Extended } from "../../../lib/common/src/interfaces/IERC20Extende
 import { BaseUnitTest } from "../../utils/BaseUnitTest.sol";
 
 contract MYieldToOneUnitTests is BaseUnitTest {
-    // Roles
-    bytes32 public constant BLACKLIST_MANAGER_ROLE = keccak256("BLACKLIST_MANAGER_ROLE");
-    bytes32 public constant YIELD_RECIPIENT_MANAGER_ROLE = keccak256("YIELD_RECIPIENT_MANAGER_ROLE");
-
     MYieldToOne public mYieldToOne;
 
     string public constant NAME = "HALO USD";
