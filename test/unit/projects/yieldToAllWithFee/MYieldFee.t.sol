@@ -172,6 +172,7 @@ contract MYieldFeeUnitTests is BaseUnitTest {
 
         mToken.setBalanceOf(address(mYieldFee), yieldAmount);
         mYieldFee.setAccountOf(alice, aliceBalance, 1_000e6);
+        mYieldFee.setIsEarningEnabled(true);
         mYieldFee.setLatestRate(mYiedFeeEarnerRate);
 
         // 10% index growth
@@ -215,6 +216,7 @@ contract MYieldFeeUnitTests is BaseUnitTest {
 
         mToken.setBalanceOf(address(mYieldFee), yieldAmount);
         mYieldFee.setAccountOf(alice, aliceBalance, 1_000e6);
+        mYieldFee.setIsEarningEnabled(true);
         mYieldFee.setLatestRate(mYiedFeeEarnerRate);
 
         assertEq(mYieldFee.claimRecipientFor(alice), alice);
@@ -281,7 +283,6 @@ contract MYieldFeeUnitTests is BaseUnitTest {
 
     function testFuzz_claimYieldFor(
         bool earningEnabled,
-        uint32 rate,
         uint16 feeRate,
         uint128 latestIndex,
         uint240 balanceWithYield,
@@ -289,7 +290,7 @@ contract MYieldFeeUnitTests is BaseUnitTest {
     ) external {
         _setupYieldFeeRate(feeRate);
 
-        uint128 currentIndex = _setupIndex(earningEnabled, rate, latestIndex);
+        uint128 currentIndex = _setupIndex(earningEnabled, latestIndex);
         (balanceWithYield, balance) = _getFuzzedBalances(
             currentIndex,
             balanceWithYield,
@@ -324,6 +325,7 @@ contract MYieldFeeUnitTests is BaseUnitTest {
     function test_claimFee() external {
         uint256 yieldFeeAmount = 20_769600;
 
+        mYieldFee.setIsEarningEnabled(true);
         mYieldFee.setLatestRate(mYiedFeeEarnerRate);
 
         // 10% index growth
@@ -371,7 +373,6 @@ contract MYieldFeeUnitTests is BaseUnitTest {
 
     function testFuzz_claimFee(
         bool earningEnabled,
-        uint32 rate,
         uint16 feeRate,
         uint128 latestIndex,
         uint240 totalSupplyWithYield,
@@ -380,7 +381,7 @@ contract MYieldFeeUnitTests is BaseUnitTest {
     ) external {
         _setupYieldFeeRate(feeRate);
 
-        uint128 currentIndex = _setupIndex(earningEnabled, rate, latestIndex);
+        uint128 currentIndex = _setupIndex(earningEnabled, latestIndex);
         uint240 maxAmount = _getMaxAmount(currentIndex);
 
         (totalSupplyWithYield, totalSupply) = _getFuzzedBalances(
@@ -425,7 +426,7 @@ contract MYieldFeeUnitTests is BaseUnitTest {
     /* ============ enableEarning ============ */
 
     function test_enableEarning_earningIsEnabled() external {
-        mYieldFee.setLatestRate(mYiedFeeEarnerRate);
+        mYieldFee.setIsEarningEnabled(true);
 
         vm.expectRevert(abi.encodeWithSelector(IMExtension.EarningIsEnabled.selector));
         mYieldFee.enableEarning();
@@ -457,6 +458,7 @@ contract MYieldFeeUnitTests is BaseUnitTest {
     }
 
     function test_disableEarning() external {
+        mYieldFee.setIsEarningEnabled(true);
         mYieldFee.setLatestRate(mYiedFeeEarnerRate);
         mYieldFee.setLatestIndex(1_100000000000);
 
@@ -481,6 +483,12 @@ contract MYieldFeeUnitTests is BaseUnitTest {
 
         // Index should not change
         assertEq(mYieldFee.currentIndex(), 1_187153439146);
+        assertEq(mYieldFee.updateIndex(), 1_187153439146);
+
+        // State should not change after updating the index
+        assertEq(mYieldFee.currentIndex(), 1_187153439146);
+        assertEq(mYieldFee.latestIndex(), 1_187153439146);
+        assertEq(mYieldFee.latestRate(), 0);
     }
 
     /* ============ setFeeRate ============ */
@@ -554,6 +562,7 @@ contract MYieldFeeUnitTests is BaseUnitTest {
     }
 
     function test_setFeeRecipient() external {
+        mYieldFee.setIsEarningEnabled(true);
         mYieldFee.setLatestRate(mYiedFeeEarnerRate);
 
         mToken.setBalanceOf(address(mYieldFee), 1_100e6);
@@ -619,6 +628,7 @@ contract MYieldFeeUnitTests is BaseUnitTest {
     /* ============ currentIndex ============ */
 
     function test_currentIndex() external {
+        mYieldFee.setIsEarningEnabled(true);
         mYieldFee.setLatestRate(mYiedFeeEarnerRate);
 
         uint256 expectedIndex = EXP_SCALED_ONE;
@@ -696,6 +706,7 @@ contract MYieldFeeUnitTests is BaseUnitTest {
         uint32 nextEarnerRate,
         uint16 feeRate,
         uint16 nextYieldFeeRate,
+        bool isEarningEnabled,
         uint128 latestIndex,
         uint40 latestUpdateTimestamp,
         uint40 nextTimestamp,
@@ -708,6 +719,7 @@ contract MYieldFeeUnitTests is BaseUnitTest {
         vm.mockCall(address(mToken), abi.encodeWithSelector(IMTokenLike.earnerRate.selector), abi.encode(earnerRate));
         uint32 latestRate = mYieldFee.latestRate();
 
+        mYieldFee.setIsEarningEnabled(isEarningEnabled);
         latestIndex = _setupLatestIndex(latestIndex);
         latestRate = _setupLatestRate(latestRate);
 
@@ -719,7 +731,10 @@ contract MYieldFeeUnitTests is BaseUnitTest {
 
         vm.warp(nextTimestamp);
 
-        uint128 expectedIndex = _getCurrentIndex(latestIndex, latestRate, latestUpdateTimestamp);
+        uint128 expectedIndex = isEarningEnabled
+            ? _getCurrentIndex(latestIndex, latestRate, latestUpdateTimestamp)
+            : latestIndex;
+
         assertEq(mYieldFee.currentIndex(), expectedIndex);
 
         vm.assume(finalTimestamp > nextTimestamp);
@@ -739,7 +754,7 @@ contract MYieldFeeUnitTests is BaseUnitTest {
         vm.warp(finalTimestamp);
 
         // expectedIndex was saved as the latest index and nextTimestamp is the latest saved timestamp
-        expectedIndex = _getCurrentIndex(expectedIndex, latestRate, nextTimestamp);
+        expectedIndex = isEarningEnabled ? _getCurrentIndex(expectedIndex, latestRate, nextTimestamp) : latestIndex;
         assertEq(mYieldFee.currentIndex(), expectedIndex);
     }
 
@@ -776,6 +791,7 @@ contract MYieldFeeUnitTests is BaseUnitTest {
     /* ============ accruedYieldOf ============ */
 
     function test_accruedYieldOf() external {
+        mYieldFee.setIsEarningEnabled(true);
         mYieldFee.setLatestRate(mYiedFeeEarnerRate);
 
         // 10% index growth
@@ -802,7 +818,6 @@ contract MYieldFeeUnitTests is BaseUnitTest {
 
     function testFuzz_accruedYieldOf(
         bool earningEnabled,
-        uint32 rate,
         uint16 feeRate,
         uint128 latestIndex,
         uint240 balanceWithYield,
@@ -812,7 +827,7 @@ contract MYieldFeeUnitTests is BaseUnitTest {
     ) external {
         _setupYieldFeeRate(feeRate);
 
-        uint128 currentIndex = _setupIndex(earningEnabled, rate, latestIndex);
+        uint128 currentIndex = _setupIndex(earningEnabled, latestIndex);
         (balanceWithYield, balance) = _getFuzzedBalances(
             currentIndex,
             balanceWithYield,
@@ -845,6 +860,7 @@ contract MYieldFeeUnitTests is BaseUnitTest {
     /* ============ balanceWithYieldOf ============ */
 
     function test_balanceWithYieldOf() external {
+        mYieldFee.setIsEarningEnabled(true);
         mYieldFee.setLatestRate(mYiedFeeEarnerRate);
 
         // 10% index growth
@@ -871,7 +887,6 @@ contract MYieldFeeUnitTests is BaseUnitTest {
 
     function testFuzz_balanceWithYieldOf(
         bool earningEnabled,
-        uint32 rate,
         uint16 feeRate,
         uint128 latestIndex,
         uint240 balanceWithYield,
@@ -881,7 +896,7 @@ contract MYieldFeeUnitTests is BaseUnitTest {
     ) external {
         _setupYieldFeeRate(feeRate);
 
-        uint128 currentIndex = _setupIndex(earningEnabled, rate, latestIndex);
+        uint128 currentIndex = _setupIndex(earningEnabled, latestIndex);
         (balanceWithYield, balance) = _getFuzzedBalances(
             currentIndex,
             balanceWithYield,
@@ -914,6 +929,7 @@ contract MYieldFeeUnitTests is BaseUnitTest {
     /* ============ projectedTotalSupply ============ */
 
     function test_projectedTotalSupply() external {
+        mYieldFee.setIsEarningEnabled(true);
         mYieldFee.setLatestRate(mYiedFeeEarnerRate);
 
         // 10% index growth
@@ -933,6 +949,7 @@ contract MYieldFeeUnitTests is BaseUnitTest {
 
     // TODO: add fuzz test
     function test_totalAccruedYield() external {
+        mYieldFee.setIsEarningEnabled(true);
         mYieldFee.setLatestRate(mYiedFeeEarnerRate);
 
         // 10% index growth
@@ -968,6 +985,7 @@ contract MYieldFeeUnitTests is BaseUnitTest {
 
     // TODO: add fuzz test
     function test_totalAccruedFee() external {
+        mYieldFee.setIsEarningEnabled(true);
         mYieldFee.setLatestRate(mYiedFeeEarnerRate);
 
         // 10% index growth
@@ -1033,6 +1051,7 @@ contract MYieldFeeUnitTests is BaseUnitTest {
     }
 
     function test_wrap() external {
+        mYieldFee.setIsEarningEnabled(true);
         mYieldFee.setLatestRate(mYiedFeeEarnerRate);
 
         // 10% index growth
@@ -1117,7 +1136,6 @@ contract MYieldFeeUnitTests is BaseUnitTest {
 
     function testFuzz_wrap(
         bool earningEnabled,
-        uint32 rate,
         uint16 feeRate,
         uint128 latestIndex,
         uint240 balanceWithYield,
@@ -1126,7 +1144,7 @@ contract MYieldFeeUnitTests is BaseUnitTest {
     ) external {
         _setupYieldFeeRate(feeRate);
 
-        uint128 currentIndex = _setupIndex(earningEnabled, rate, latestIndex);
+        uint128 currentIndex = _setupIndex(earningEnabled, latestIndex);
         (balanceWithYield, balance) = _getFuzzedBalances(
             currentIndex,
             balanceWithYield,
@@ -1203,6 +1221,7 @@ contract MYieldFeeUnitTests is BaseUnitTest {
     }
 
     function test_unwrap() external {
+        mYieldFee.setIsEarningEnabled(true);
         mYieldFee.setLatestRate(mYiedFeeEarnerRate);
 
         // 10% index growth
@@ -1277,7 +1296,6 @@ contract MYieldFeeUnitTests is BaseUnitTest {
 
     function testFuzz_unwrap(
         bool earningEnabled,
-        uint32 rate,
         uint16 feeRate,
         uint128 latestIndex,
         uint240 balanceWithYield,
@@ -1286,7 +1304,7 @@ contract MYieldFeeUnitTests is BaseUnitTest {
     ) external {
         _setupYieldFeeRate(feeRate);
 
-        uint128 currentIndex = _setupIndex(earningEnabled, rate, latestIndex);
+        uint128 currentIndex = _setupIndex(earningEnabled, latestIndex);
         (balanceWithYield, balance) = _getFuzzedBalances(
             currentIndex,
             balanceWithYield,
@@ -1382,6 +1400,7 @@ contract MYieldFeeUnitTests is BaseUnitTest {
 
     // TODO: add integration test
     function test_transfer() external {
+        mYieldFee.setIsEarningEnabled(true);
         mYieldFee.setLatestRate(mYiedFeeEarnerRate);
 
         // 10% index growth
@@ -1430,6 +1449,7 @@ contract MYieldFeeUnitTests is BaseUnitTest {
     }
 
     function test_transfer_toSelf() external {
+        mYieldFee.setIsEarningEnabled(true);
         mYieldFee.setLatestRate(mYiedFeeEarnerRate);
 
         // 10% index growth
@@ -1466,7 +1486,6 @@ contract MYieldFeeUnitTests is BaseUnitTest {
 
     function testFuzz_transfer(
         bool earningEnabled,
-        uint32 rate,
         uint16 feeRate,
         uint128 latestIndex,
         uint240 aliceBalanceWithYield,
@@ -1477,7 +1496,7 @@ contract MYieldFeeUnitTests is BaseUnitTest {
     ) external {
         _setupYieldFeeRate(feeRate);
 
-        uint128 currentIndex = _setupIndex(earningEnabled, rate, latestIndex);
+        uint128 currentIndex = _setupIndex(earningEnabled, latestIndex);
         (aliceBalanceWithYield, aliceBalance) = _getFuzzedBalances(
             currentIndex,
             aliceBalanceWithYield,
@@ -1640,15 +1659,13 @@ contract MYieldFeeUnitTests is BaseUnitTest {
         return latestIndex;
     }
 
-    function _setupIndex(bool earningEnabled, uint32 rate, uint128 latestIndex) internal returns (uint128) {
+    function _setupIndex(bool earningEnabled, uint128 latestIndex) internal returns (uint128) {
         mYieldFee.setLatestIndex(bound(latestIndex, EXP_SCALED_ONE, 10_000000000000));
 
         if (earningEnabled) {
-            // Earning is enabled when latestRate != 0
-            _setupLatestRate(rate);
+            mYieldFee.setIsEarningEnabled(true);
         } else {
-            // Earning is disabled when latestRate == 0
-            mYieldFee.setLatestRate(0);
+            mYieldFee.setIsEarningEnabled(false);
         }
 
         return mYieldFee.currentIndex();

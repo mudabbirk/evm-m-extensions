@@ -70,6 +70,7 @@ contract MSpokeYieldFeeUnitTests is BaseUnitTest {
     /* ============ currentIndex ============ */
 
     function test_currentIndex() external {
+        mYieldFee.setIsEarningEnabled(true);
         mYieldFee.setLatestRate(mYiedFeeEarnerRate);
 
         uint256 expectedIndex = EXP_SCALED_ONE;
@@ -124,9 +125,7 @@ contract MSpokeYieldFeeUnitTests is BaseUnitTest {
 
         // Index should not change
         assertEq(mYieldFee.currentIndex(), expectedCurrentIndex);
-
-        // TODO: uncomment once updateIndex H01 bug has been fixed
-        // assertEq(mYieldFee.updateIndex(), expectedCurrentIndex);
+        assertEq(mYieldFee.updateIndex(), expectedCurrentIndex);
 
         // Re-enable earning
         mYieldFee.enableEarning();
@@ -154,6 +153,7 @@ contract MSpokeYieldFeeUnitTests is BaseUnitTest {
         uint32 nextEarnerRate,
         uint16 feeRate,
         uint16 nextYieldFeeRate,
+        bool isEarningEnabled,
         uint128 latestIndex,
         uint40 latestUpdateTimestamp,
         uint40 nextTimestamp,
@@ -166,6 +166,7 @@ contract MSpokeYieldFeeUnitTests is BaseUnitTest {
         vm.mockCall(address(mToken), abi.encodeWithSelector(IMTokenLike.earnerRate.selector), abi.encode(earnerRate));
         uint32 latestRate = mYieldFee.latestRate();
 
+        mYieldFee.setIsEarningEnabled(isEarningEnabled);
         latestIndex = _setupLatestIndex(latestIndex);
         latestRate = _setupLatestRate(latestRate);
 
@@ -181,7 +182,10 @@ contract MSpokeYieldFeeUnitTests is BaseUnitTest {
 
         mToken.setLatestUpdateTimestamp(nextTimestamp);
 
-        uint128 expectedIndex = _getCurrentIndex(latestIndex, latestRate, latestUpdateTimestamp);
+        uint128 expectedIndex = isEarningEnabled
+            ? _getCurrentIndex(latestIndex, latestRate, latestUpdateTimestamp)
+            : latestIndex;
+
         assertEq(mYieldFee.currentIndex(), expectedIndex);
 
         vm.assume(finalTimestamp > nextTimestamp);
@@ -201,7 +205,7 @@ contract MSpokeYieldFeeUnitTests is BaseUnitTest {
         vm.warp(finalTimestamp);
 
         // expectedIndex was saved as the latest index and nextTimestamp is the latest saved timestamp
-        expectedIndex = _getCurrentIndex(expectedIndex, latestRate, nextTimestamp);
+        expectedIndex = isEarningEnabled ? _getCurrentIndex(expectedIndex, latestRate, nextTimestamp) : latestIndex;
         assertEq(mYieldFee.currentIndex(), expectedIndex);
     }
 
