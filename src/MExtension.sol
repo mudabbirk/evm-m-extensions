@@ -73,7 +73,7 @@ abstract contract MExtension is IMExtension, ERC20ExtendedUpgradeable {
     /// @inheritdoc IMExtension
     function unwrap(address /* recipient */, uint256 amount) external onlySwapFacility {
         // NOTE: `msg.sender` is always SwapFacility contract.
-        //       `ISwapFacility.msgSender()` is used to ensure that the original caller is passed to `_beforeWrap`.
+        //       `ISwapFacility.msgSender()` is used to ensure that the original caller is passed to `_beforeUnwrap`.
         // NOTE: `recipient` is not used in this function as the $M is always sent to SwapFacility contract.
         _unwrap(ISwapFacility(msg.sender).msgSender(), amount);
     }
