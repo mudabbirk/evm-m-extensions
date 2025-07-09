@@ -125,7 +125,7 @@ abstract contract Blacklistable is IBlacklistable, BlacklistableStorageLayout, A
     }
 
     /**
-     * @notice Internal function that reverts if an account is blacklisted.
+     * @notice Internal function that reverts if an account is not blacklisted.
      * @param $ The storage location of the blacklistable contract.
      * @param account The account to check.
      */
