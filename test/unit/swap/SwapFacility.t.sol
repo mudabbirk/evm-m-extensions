@@ -4,13 +4,20 @@ pragma solidity 0.8.26;
 
 import { Test } from "../../../lib/forge-std/src/Test.sol";
 
-import { Upgrades, UnsafeUpgrades } from "../../../lib/openzeppelin-foundry-upgrades/src/Upgrades.sol";
+import { IAccessControl } from "../../../lib/openzeppelin-contracts/contracts/access/IAccessControl.sol";
+import { UnsafeUpgrades } from "../../../lib/openzeppelin-foundry-upgrades/src/Upgrades.sol";
 
 import { ISwapFacility } from "../../../src/swap/interfaces/ISwapFacility.sol";
 
 import { SwapFacility } from "../../../src/swap/SwapFacility.sol";
 
 import { MockM, MockMExtension, MockRegistrar } from "../../utils/Mocks.sol";
+
+contract SwapFacilityV2 {
+    function foo() external pure returns (uint256) {
+        return 1;
+    }
+}
 
 contract SwapFacilityUnitTests is Test {
     bytes32 public constant M_SWAPPER_ROLE = keccak256("M_SWAPPER_ROLE");
@@ -159,5 +166,18 @@ contract SwapFacilityUnitTests is Test {
 
         vm.prank(alice);
         swapFacility.swapOutM(address(extensionA), 1, alice);
+    }
+
+    function test_upgrade() external {
+        // Current version does not have foo() function
+        vm.expectRevert();
+        SwapFacilityV2(address(swapFacility)).foo();
+
+        // Upgrade the contract to a new implementation
+        vm.startPrank(owner);
+        UnsafeUpgrades.upgradeProxy(address(swapFacility), address(new SwapFacilityV2()), "");
+
+        // Verify the upgrade was successful
+        assertEq(SwapFacilityV2(address(swapFacility)).foo(), 1);
     }
 }

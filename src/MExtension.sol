@@ -66,16 +66,16 @@ abstract contract MExtension is IMExtension, ERC20ExtendedUpgradeable {
     /// @inheritdoc IMExtension
     function wrap(address recipient, uint256 amount) external onlySwapFacility {
         // NOTE: `msg.sender` is always SwapFacility contract.
-        //       `swapFacility.msgSender()` is used to ensure that the original caller is passed to `_beforeWrap`.
-        _wrap(ISwapFacility(swapFacility).msgSender(), recipient, amount);
+        //       `ISwapFacility.msgSender()` is used to ensure that the original caller is passed to `_beforeWrap`.
+        _wrap(ISwapFacility(msg.sender).msgSender(), recipient, amount);
     }
 
     /// @inheritdoc IMExtension
     function unwrap(address /* recipient */, uint256 amount) external onlySwapFacility {
         // NOTE: `msg.sender` is always SwapFacility contract.
-        //       `swapFacility.msgSender()` is used to ensure that the original caller is passed to `_beforeWrap`.
+        //       `ISwapFacility.msgSender()` is used to ensure that the original caller is passed to `_beforeUnwrap`.
         // NOTE: `recipient` is not used in this function as the $M is always sent to SwapFacility contract.
-        _unwrap(ISwapFacility(swapFacility).msgSender(), amount);
+        _unwrap(ISwapFacility(msg.sender).msgSender(), amount);
     }
 
     /// @inheritdoc IMExtension
@@ -172,9 +172,9 @@ abstract contract MExtension is IMExtension, ERC20ExtendedUpgradeable {
         // NOTE: Add extension-specific checks before wrapping.
         _beforeWrap(account, recipient, amount);
 
-        // NOTE: Always transfer from SwapFacility as it is the only contract that can call this function.
+        // NOTE: `msg.sender` is always SwapFacility contract.
         // NOTE: The behavior of `IMTokenLike.transferFrom` is known, so its return can be ignored.
-        IMTokenLike(mToken).transferFrom(swapFacility, address(this), amount);
+        IMTokenLike(mToken).transferFrom(msg.sender, address(this), amount);
 
         // NOTE: Mints precise amount of $M Extension token to `recipient`.
         //       Option 1: $M transfer from an $M earner to another $M earner ($M Extension in earning state): rounds up → rounds up,
@@ -199,7 +199,6 @@ abstract contract MExtension is IMExtension, ERC20ExtendedUpgradeable {
 
         _revertIfInsufficientBalance(account, balanceOf(account), amount);
 
-        // NOTE: The behavior of `IMTokenLike.transfer` is known, so its return can be ignored.
         // NOTE: Computes the actual decrease in the $M balance of the $M Extension contract.
         //       Option 1: $M transfer from an $M earner ($M Extension in earning state) to another $M earner: round up → rounds up.
         //       Option 2: $M transfer from an $M earner ($M Extension in earning state) to an $M non-earner: round up → precise $M transfer.
@@ -209,7 +208,8 @@ abstract contract MExtension is IMExtension, ERC20ExtendedUpgradeable {
         _burn(account, amount);
 
         // NOTE: The behavior of `IMTokenLike.transfer` is known, so its return can be ignored.
-        IMTokenLike(mToken).transfer(swapFacility, amount);
+        // NOTE: `msg.sender` is always SwapFacility contract.
+        IMTokenLike(mToken).transfer(msg.sender, amount);
     }
 
     /**
