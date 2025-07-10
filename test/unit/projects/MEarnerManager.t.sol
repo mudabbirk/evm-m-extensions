@@ -460,6 +460,76 @@ contract MEarnerManagerUnitTests is BaseUnitTest {
         assertEq(yieldNetOfFees, 0e6);
     }
 
+    function test_claimFor_multipleAccounts() external {
+        mEarnerManager.setAccountOf(alice, 1_000e6, 1_000e6, true, 1_000);
+        mEarnerManager.setAccountOf(bob, 1_000e6, 1_000e6, true, 2_000);
+        mEarnerManager.setAccountOf(carol, 1_000e6, 1_000e6, true, 3_000);
+        mEarnerManager.setAccountOf(charlie, 1_000e6, 1_000e6, true, 4_000);
+        mEarnerManager.setAccountOf(david, 1_000e6, 1_000e6, true, 5_000);
+
+        address[] memory accounts = new address[](6);
+        accounts[0] = alice;
+        accounts[1] = bob;
+        accounts[2] = carol;
+        accounts[3] = charlie;
+        accounts[4] = david;
+        accounts[5] = makeAddr("not-whitelisted");
+
+        (uint256[] memory yieldWithFees, uint256[] memory fees, uint256[] memory yieldNetOfFees) = mEarnerManager
+            .claimFor(accounts);
+
+        // alice
+        assertEq(yieldWithFees[0], 100e6);
+        assertEq(fees[0], 10e6);
+        assertEq(yieldNetOfFees[0], 90e6);
+
+        // bob
+        assertEq(yieldWithFees[1], 100e6);
+        assertEq(fees[1], 20e6);
+        assertEq(yieldNetOfFees[1], 80e6);
+
+        // carol
+        assertEq(yieldWithFees[2], 100e6);
+        assertEq(fees[2], 30e6);
+        assertEq(yieldNetOfFees[2], 70e6);
+
+        // charlie
+        assertEq(yieldWithFees[3], 100e6);
+        assertEq(fees[3], 40e6);
+        assertEq(yieldNetOfFees[3], 60e6);
+
+        assertEq(yieldWithFees[4], 100e6);
+        assertEq(fees[4], 50e6);
+        assertEq(yieldNetOfFees[4], 50e6);
+
+        // Not whitelisted account
+        assertEq(yieldWithFees[5], 0);
+        assertEq(fees[5], 0);
+        assertEq(yieldNetOfFees[5], 0);
+
+        // Yield + fees were claimed
+        assertEq(mEarnerManager.accruedYieldOf(alice), 0);
+        assertEq(mEarnerManager.accruedFeeOf(alice), 0);
+        assertEq(mEarnerManager.accruedYieldOf(bob), 0);
+        assertEq(mEarnerManager.accruedFeeOf(bob), 0);
+        assertEq(mEarnerManager.accruedYieldOf(carol), 0);
+        assertEq(mEarnerManager.accruedFeeOf(carol), 0);
+        assertEq(mEarnerManager.accruedYieldOf(charlie), 0);
+        assertEq(mEarnerManager.accruedFeeOf(charlie), 0);
+        assertEq(mEarnerManager.accruedYieldOf(david), 0);
+        assertEq(mEarnerManager.accruedFeeOf(david), 0);
+
+        // Balances were updated
+        assertEq(mEarnerManager.balanceOf(alice), 1_000e6 + yieldNetOfFees[0]);
+        assertEq(mEarnerManager.balanceOf(bob), 1_000e6 + yieldNetOfFees[1]);
+        assertEq(mEarnerManager.balanceOf(carol), 1_000e6 + yieldNetOfFees[2]);
+        assertEq(mEarnerManager.balanceOf(charlie), 1_000e6 + yieldNetOfFees[3]);
+        assertEq(mEarnerManager.balanceOf(david), 1_000e6 + yieldNetOfFees[4]);
+
+        // Fee recipient balance should be the sum of all fees
+        assertEq(mEarnerManager.balanceOf(feeRecipient), 10e6 + 20e6 + 30e6 + 40e6 + 50e6);
+    }
+
     /* ============ _approve ============ */
 
     function test_approve_notWhitelistedAccount() public {

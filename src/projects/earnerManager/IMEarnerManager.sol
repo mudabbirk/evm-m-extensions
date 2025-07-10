@@ -82,6 +82,17 @@ interface IMEarnerManager {
     function claimFor(address account) external returns (uint256, uint256, uint256);
 
     /**
+     * @notice Claims accrued yield to the accounts and % in fees to fee recipient.
+     * @param  accounts The addresses of the accounts to claim yield for.
+     * @return yieldWithFees The total amount of M extension yield claimed for each account.
+     * @return fees The amount of M extension yield fee sent to fee recipient for each account.
+     * @return yieldNetOfFees The amount of M extension yield net of fees for each account.
+     */
+    function claimFor(
+        address[] calldata accounts
+    ) external returns (uint256[] memory yieldWithFees, uint256[] memory fees, uint256[] memory yieldNetOfFees);
+
+    /**
      * @notice Sets the account info like:
      *         - whitelisting or removing account from whitelist,
      *         - fee rate for the account.

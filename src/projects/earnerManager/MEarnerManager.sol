@@ -146,11 +146,11 @@ contract MEarnerManager is IMEarnerManager, AccessControlUpgradeable, MEarnerMan
 
         if (yieldWithFee == 0) return (0, 0, 0);
 
-        MEarnerManagerStorageStruct storage $ = _getMEarnerManagerStorageLocation();
-
         // Emit the appropriate `YieldClaimed` and `Transfer` events.
         emit YieldClaimed(account, yieldNetOfFee);
         emit Transfer(address(0), account, yieldWithFee);
+
+        MEarnerManagerStorageStruct storage $ = _getMEarnerManagerStorageLocation();
 
         // NOTE: No change in principal, only the balance is updated to include the newly claimed yield.
         unchecked {
@@ -168,6 +168,23 @@ contract MEarnerManager is IMEarnerManager, AccessControlUpgradeable, MEarnerMan
 
         // Transfer fee to the fee recipient.
         _update(account, feeRecipient_, fee);
+    }
+
+    /// @inheritdoc IMEarnerManager
+    function claimFor(
+        address[] calldata accounts
+    ) external returns (uint256[] memory yieldWithFees, uint256[] memory fees, uint256[] memory yieldNetOfFees) {
+        if (accounts.length == 0) revert ArrayLengthZero();
+
+        // Initialize the return arrays with the same length as the `accounts` array.
+        yieldWithFees = new uint256[](accounts.length);
+        fees = new uint256[](accounts.length);
+        yieldNetOfFees = new uint256[](accounts.length);
+
+        // NOTE: Expected to loop over unique whitelisted addresses; otherwise, no yield will be claimed.
+        for (uint256 index_ = 0; index_ < accounts.length; ++index_) {
+            (yieldWithFees[index_], fees[index_], yieldNetOfFees[index_]) = claimFor(accounts[index_]);
+        }
     }
 
     /// @inheritdoc IMExtension
