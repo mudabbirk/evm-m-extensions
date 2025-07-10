@@ -11,6 +11,8 @@ import {
 import { IndexingMath } from "../../libs/IndexingMath.sol";
 import { UIntMath } from "../../../lib/common/src/libs/UIntMath.sol";
 
+import { IMExtension } from "../../interfaces/IMExtension.sol";
+import { IMTokenLike } from "../../interfaces/IMTokenLike.sol";
 import { IMEarnerManager } from "./IMEarnerManager.sol";
 
 import { MExtension } from "../../MExtension.sol";
@@ -41,6 +43,9 @@ abstract contract MEarnerManagerStorageLayout {
         // Slot 3
         uint112 totalPrincipal;
         // Slot 4
+        bool wasEarningEnabled;
+        uint128 disableIndex;
+        // Slot 5
         mapping(address account => Account) accounts;
     }
 
@@ -165,7 +170,38 @@ contract MEarnerManager is IMEarnerManager, AccessControlUpgradeable, MEarnerMan
         _update(account, feeRecipient_, fee);
     }
 
+    /// @inheritdoc IMExtension
+    function enableEarning() external override {
+        MEarnerManagerStorageStruct storage $ = _getMEarnerManagerStorageLocation();
+
+        if ($.wasEarningEnabled) revert EarningCannotBeReenabled();
+
+        $.wasEarningEnabled = true;
+
+        emit EarningEnabled(currentIndex());
+
+        IMTokenLike(mToken).startEarning();
+    }
+
+    /// @inheritdoc IMExtension
+    function disableEarning() external override {
+        MEarnerManagerStorageStruct storage $ = _getMEarnerManagerStorageLocation();
+
+        if ($.disableIndex != 0) revert EarningIsDisabled();
+
+        emit EarningDisabled($.disableIndex = currentIndex());
+
+        IMTokenLike(mToken).stopEarning(address(this));
+    }
+
     /* ============ External/Public view functions ============ */
+
+    /// @inheritdoc IMExtension
+    function isEarningEnabled() public view override returns (bool) {
+        MEarnerManagerStorageStruct storage $ = _getMEarnerManagerStorageLocation();
+
+        return $.wasEarningEnabled && $.disableIndex == 0;
+    }
 
     /// @inheritdoc IMEarnerManager
     function accruedYieldAndFeeOf(
@@ -241,6 +277,22 @@ contract MEarnerManager is IMEarnerManager, AccessControlUpgradeable, MEarnerMan
         return _getMEarnerManagerStorageLocation().accounts[account].feeRate;
     }
 
+    /// @inheritdoc IMExtension
+    function currentIndex() public view override returns (uint128) {
+        uint128 disableIndex_ = disableIndex();
+        return disableIndex_ == 0 ? IMTokenLike(mToken).currentIndex() : disableIndex_;
+    }
+
+    /// @inheritdoc IMEarnerManager
+    function disableIndex() public view returns (uint128) {
+        return _getMEarnerManagerStorageLocation().disableIndex;
+    }
+
+    /// @inheritdoc IMEarnerManager
+    function wasEarningEnabled() public view returns (bool) {
+        return _getMEarnerManagerStorageLocation().wasEarningEnabled;
+    }
+
     /* ============ Hooks For Internal Interactive Functions ============ */
 
     /**
@@ -261,6 +313,8 @@ contract MEarnerManager is IMEarnerManager, AccessControlUpgradeable, MEarnerMan
      * @param  recipient The account receiving the minted M Extension token.
      */
     function _beforeWrap(address account, address recipient, uint256 /* amount */) internal view override {
+        if (!isEarningEnabled()) revert EarningIsDisabled();
+
         MEarnerManagerStorageStruct storage $ = _getMEarnerManagerStorageLocation();
 
         _revertIfNotWhitelisted($, account);

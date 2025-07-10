@@ -67,6 +67,9 @@ interface IMEarnerManager {
     /// @notice Emitted in `setAccountInfo` if the array is empty.
     error ArrayLengthZero();
 
+    /// @notice Emitted in `enableEarning` if earning was already previously enabled.
+    error EarningCannotBeReenabled();
+
     /* ============ Interactive Functions ============ */
 
     /**
@@ -136,6 +139,12 @@ interface IMEarnerManager {
 
     /// @notice The address of the yield fee recipient for all whitelisted accounts.
     function feeRecipient() external view returns (address);
+
+    /// @notice The M index when earning for the M extension was disabled.
+    function disableIndex() external view returns (uint128);
+
+    /// @notice Whether earning was enabled at least once for this M extension.
+    function wasEarningEnabled() external view returns (bool);
 
     /// @notice The projected total supply if all accrued yield was claimed at this moment.
     function projectedTotalSupply() external view returns (uint256);

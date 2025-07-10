@@ -43,6 +43,7 @@ contract MEarnerManagerUnitTests is BaseUnitTest {
 
         // Made mEarnerManager the earner, so it can be used in SwapFacility
         registrar.setEarner(address(mEarnerManager), true);
+        mEarnerManager.enableEarning();
 
         // Whitelist SwapFacility
         mEarnerManager.setAccountOf(address(swapFacility), 0, 0, true, 0);
@@ -517,6 +518,19 @@ contract MEarnerManagerUnitTests is BaseUnitTest {
         swapFacility.swapInM(address(mEarnerManager), 0, address(0));
     }
 
+    function test_wrap_EarningIsNotEnabled() external {
+        uint256 amount = 1_000e6;
+        mToken.setBalanceOf(alice, amount);
+
+        // Disable earning
+        mEarnerManager.disableEarning();
+
+        vm.expectRevert(IMExtension.EarningIsDisabled.selector);
+
+        vm.prank(alice);
+        swapFacility.swapInM(address(mEarnerManager), amount, alice);
+    }
+
     function test_wrap() external {
         mEarnerManager.setAccountOf(alice, 0, 0, true, 1_000);
         mEarnerManager.setAccountOf(bob, 0, 0, true, 1_000);
@@ -793,13 +807,14 @@ contract MEarnerManagerUnitTests is BaseUnitTest {
     /* ============ enableEarning ============ */
 
     function test_enableEarning_earningEnabled() external {
-        mEarnerManager.enableEarning();
-
-        vm.expectRevert(IMExtension.EarningIsEnabled.selector);
+        vm.expectRevert(IMEarnerManager.EarningCannotBeReenabled.selector);
         mEarnerManager.enableEarning();
     }
 
     function test_enableEarning() external {
+        // Disable earning first to be able to re-enable it
+        mEarnerManager.setWasEarningEnabled(false);
+
         mToken.setCurrentIndex(1_210000000000);
 
         vm.expectEmit();
@@ -808,24 +823,35 @@ contract MEarnerManagerUnitTests is BaseUnitTest {
         mEarnerManager.enableEarning();
 
         assertEq(mEarnerManager.isEarningEnabled(), true);
+        assertEq(mEarnerManager.wasEarningEnabled(), true);
+        assertEq(mEarnerManager.disableIndex(), 0);
     }
 
     /* ============ disableEarning ============ */
 
     function test_disableEarning_earningIsDisabled() external {
+        mEarnerManager.disableEarning();
+
         vm.expectRevert(IMExtension.EarningIsDisabled.selector);
         mEarnerManager.disableEarning();
     }
 
     function test_disableEarning() external {
-        mToken.setCurrentIndex(1_100000000000);
-
-        mEarnerManager.enableEarning();
-
         mToken.setCurrentIndex(1_200000000000);
+
+        vm.expectEmit();
+        emit IMExtension.EarningDisabled(1_200000000000);
+
+        assertEq(mEarnerManager.currentIndex(), 1_200000000000);
 
         mEarnerManager.disableEarning();
 
         assertEq(mEarnerManager.isEarningEnabled(), false);
+        assertEq(mEarnerManager.disableIndex(), 1_200000000000);
+        assertEq(mEarnerManager.currentIndex(), 1_200000000000);
+
+        mToken.setCurrentIndex(1_300000000000);
+
+        assertEq(mEarnerManager.currentIndex(), 1_200000000000);
     }
 }
