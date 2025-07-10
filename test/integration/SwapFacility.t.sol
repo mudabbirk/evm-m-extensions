@@ -4,6 +4,10 @@ pragma solidity 0.8.26;
 
 import { IERC20 } from ".../../lib/common/src/interfaces/IERC20.sol";
 import { Upgrades } from "../../lib/openzeppelin-foundry-upgrades/src/Upgrades.sol";
+import { WrappedMToken } from "../../lib/wrapped-m-token/src/WrappedMToken.sol";
+import { EarnerManager } from "../../lib/wrapped-m-token/src/EarnerManager.sol";
+import { WrappedMTokenMigratorV1 } from "../../lib/wrapped-m-token/src/WrappedMTokenMigratorV1.sol";
+import { Proxy } from "../../lib/common/src/Proxy.sol";
 
 import { MYieldFee } from "../../src/projects/yieldToAllWithFee/MYieldFee.sol";
 import { MYieldToOne } from "../../src/projects/yieldToOne/MYieldToOne.sol";
@@ -41,6 +45,26 @@ contract SwapFacilityIntegrationTest is BaseIntegrationTest {
 
         vm.prank(admin);
         swapFacility.grantRole(M_SWAPPER_ROLE, USER);
+
+        // TODO: Remove this when Wrapped M is upgraded to V2
+        address earnerManagerImplementation = address(new EarnerManager(registrar, admin));
+        address earnerManager = address(new Proxy(earnerManagerImplementation));
+        address wrappedMTokenImplementationV2 = address(
+            new WrappedMToken(
+                address(mToken),
+                registrar,
+                earnerManager,
+                admin,
+                address(swapFacility),
+                admin
+            )
+        );
+
+        // Ignore earners migration
+        address wrappedMTokenMigratorV1 = address(new WrappedMTokenMigratorV1(wrappedMTokenImplementationV2, new address[](0)));
+
+        vm.prank(WrappedMToken(WRAPPED_M).migrationAdmin());
+        WrappedMToken(WRAPPED_M).migrate(wrappedMTokenMigratorV1);
     }
 
     function test_swap() public {
@@ -60,6 +84,38 @@ contract SwapFacilityIntegrationTest is BaseIntegrationTest {
 
         assertApproxEqAbs(wrappedMBalanceAfter, wrappedMBalanceBefore + amount, 2);
         assertEq(mYieldToOne.balanceOf(USER), 0);
+    }
+
+    function test_swapWithPermit_vrs() public {
+        uint256 amount = 1_000_000;
+
+        // Transfer $M to Alice
+        vm.prank(USER);
+        IERC20(address(mToken)).transfer(alice, amount);
+
+        // Swap $M to mYieldToOne
+        vm.startPrank(alice);
+        IERC20(address(mToken)).approve(address(swapFacility), amount);
+        swapFacility.swapInM(address(mYieldToOne), amount, alice);
+
+        assertEq(mYieldToOne.balanceOf(alice), amount);
+        assertEq(IERC20(WRAPPED_M).balanceOf(alice), 0);
+
+        (uint8 v, bytes32 r, bytes32 s) = _getExtensionPermit(
+            address(mYieldToOne),
+            address(swapFacility),
+            alice,
+            aliceKey,
+            amount,
+            0,
+            block.timestamp
+        );
+        
+        // Swap mYieldToOne to Wrapped M
+        swapFacility.swapWithPermit(address(mYieldToOne), WRAPPED_M, amount, alice, block.timestamp, v, r, s);
+
+        assertApproxEqAbs(IERC20(WRAPPED_M).balanceOf(alice), amount, 2);
+        assertEq(mYieldToOne.balanceOf(alice), 0);
     }
 
     function test_swapInM() public {
@@ -83,7 +139,7 @@ contract SwapFacilityIntegrationTest is BaseIntegrationTest {
         assertEq(mYieldToOne.balanceOf(alice), 0);
         assertEq(IERC20(address(mToken)).balanceOf(alice), amount);
 
-        (uint8 v, bytes32 r, bytes32 s) = _getPermit(
+        (uint8 v, bytes32 r, bytes32 s) = _getMPermit(
             address(swapFacility),
             alice,
             aliceKey,
@@ -107,7 +163,7 @@ contract SwapFacilityIntegrationTest is BaseIntegrationTest {
         assertEq(mYieldToOne.balanceOf(alice), 0);
         assertEq(IERC20(address(mToken)).balanceOf(alice), amount);
 
-        (uint8 v, bytes32 r, bytes32 s) = _getPermit(
+        (uint8 v, bytes32 r, bytes32 s) = _getMPermit(
             address(swapFacility),
             alice,
             aliceKey,
@@ -133,6 +189,7 @@ contract SwapFacilityIntegrationTest is BaseIntegrationTest {
 
         uint256 mBalanceBefore = IERC20(address(mToken)).balanceOf(USER);
 
+        mYieldToOne.approve(address(swapFacility), amount);
         swapFacility.swapOutM(address(mYieldToOne), amount, USER);
 
         uint256 mBalanceAfter = IERC20(address(mToken)).balanceOf(USER);
@@ -140,6 +197,39 @@ contract SwapFacilityIntegrationTest is BaseIntegrationTest {
         assertEq(mYieldToOne.balanceOf(USER), 0);
         assertEq(mBalanceAfter - mBalanceBefore, amount);
     }
+
+    function test_swapOutMWithPermit_vrs() public {
+        uint256 amount = 1_000_000;
+
+        // Transfer $M to Alice
+        vm.prank(USER);
+        IERC20(address(mToken)).transfer(alice, amount);
+
+        // Swap $M to mYieldToOne
+        vm.startPrank(alice);
+        IERC20(address(mToken)).approve(address(swapFacility), amount);
+        swapFacility.swapInM(address(mYieldToOne), amount, alice);
+
+        assertEq(mYieldToOne.balanceOf(alice), amount);
+        assertEq(IERC20(address(mToken)).balanceOf(alice), 0);
+
+        (uint8 v, bytes32 r, bytes32 s) = _getExtensionPermit(
+            address(mYieldToOne),
+            address(swapFacility),
+            alice,
+            aliceKey,
+            amount,
+            0,
+            block.timestamp
+        );
+        
+        // Swap mYieldToOne to M
+        swapFacility.swapOutMWithPermit(address(mYieldToOne), amount, alice, block.timestamp, v, r, s);
+
+        assertEq(IERC20(address(mToken)).balanceOf(alice), amount);
+        assertEq(mYieldToOne.balanceOf(alice), 0);
+    }
+
 
     function test_swapInToken_USDC_to_wrappedM() public {
         uint256 amountIn = 1_000_000;
