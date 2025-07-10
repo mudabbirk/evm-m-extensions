@@ -284,10 +284,10 @@ abstract contract MExtension is IMExtension, ERC20ExtendedUpgradeable {
     }
 
     /**
-     * @dev   Reverts if `account` balance is below `balance`.
+     * @dev   Reverts if `account` balance is below `amount`.
      * @param account Address of an account.
      * @param balance Balance of an account.
-     * @param amount Amount to transfer or burn.
+     * @param amount  Amount to transfer or burn.
      */
     function _revertIfInsufficientBalance(address account, uint256 balance, uint256 amount) internal pure {
         if (balance < amount) revert InsufficientBalance(account, balance, amount);

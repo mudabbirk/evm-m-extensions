@@ -140,7 +140,7 @@ interface ISwapFacility {
     function registrar() external view returns (address registrar);
 
     /// @notice The address of the UniswapV3 Swap Adapter contract.
-    function swapAdapter() external view returns (address registrar);
+    function swapAdapter() external view returns (address swapAdapter);
 
     /**
      * @notice Returns the address that called `swap` or `swapM`
