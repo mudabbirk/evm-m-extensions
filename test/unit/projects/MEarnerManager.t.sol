@@ -200,6 +200,42 @@ contract MEarnerManagerUnitTests is BaseUnitTest {
         assertEq(mEarnerManager.balanceOf(feeRecipient), fee);
     }
 
+    function test_setAccountInfo_rewhitelistAccount() external {
+        mEarnerManager.setAccountOf(alice, 1_000e6, 1_000e6, true, 1_000);
+
+        assertEq(mEarnerManager.isWhitelisted(alice), true);
+        assertEq(mEarnerManager.feeRateOf(alice), 1_000);
+
+        uint256 yield = mEarnerManager.accruedYieldOf(alice);
+
+        vm.prank(earnerManager);
+        mEarnerManager.setAccountInfo(alice, false, 0);
+
+        assertEq(mEarnerManager.isWhitelisted(alice), false);
+        assertEq(mEarnerManager.balanceOf(alice), 1_000e6 + yield);
+        assertEq(mEarnerManager.accruedYieldOf(alice), 0);
+
+        mToken.setCurrentIndex(12e11);
+
+        (uint256 yieldWithFee, uint256 fee, uint256 yieldNetOfFees) = mEarnerManager.accruedYieldAndFeeOf(alice);
+
+        assertEq(yieldWithFee, fee);
+        assertEq(yieldNetOfFees, 0);
+
+        uint256 aliceBalanceBefore = mEarnerManager.balanceOf(alice);
+        uint256 feeRecipientBalanceBefore = mEarnerManager.balanceOf(feeRecipient);
+
+        vm.prank(earnerManager);
+        mEarnerManager.setAccountInfo(alice, true, 1_000);
+
+        assertEq(mEarnerManager.isWhitelisted(alice), true);
+        assertEq(mEarnerManager.feeRateOf(alice), 1_000);
+
+        // Alice balance didn't change, fee recipient received fee
+        assertEq(mEarnerManager.balanceOf(alice), aliceBalanceBefore);
+        assertEq(mEarnerManager.balanceOf(feeRecipient), feeRecipientBalanceBefore + fee);
+    }
+
     function test_setAccountInfo_changeFee() external {
         mEarnerManager.setAccountOf(alice, 1_000e6, 1_000e6, true, 1_000);
 
@@ -907,21 +943,21 @@ contract MEarnerManagerUnitTests is BaseUnitTest {
     }
 
     function test_disableEarning() external {
-        mToken.setCurrentIndex(1_200000000000);
+        mToken.setCurrentIndex(12e11);
+
+        assertEq(mEarnerManager.currentIndex(), 12e11);
 
         vm.expectEmit();
-        emit IMExtension.EarningDisabled(1_200000000000);
-
-        assertEq(mEarnerManager.currentIndex(), 1_200000000000);
+        emit IMExtension.EarningDisabled(12e11);
 
         mEarnerManager.disableEarning();
 
         assertEq(mEarnerManager.isEarningEnabled(), false);
-        assertEq(mEarnerManager.disableIndex(), 1_200000000000);
-        assertEq(mEarnerManager.currentIndex(), 1_200000000000);
+        assertEq(mEarnerManager.disableIndex(), 12e11);
+        assertEq(mEarnerManager.currentIndex(), 12e11);
 
-        mToken.setCurrentIndex(1_300000000000);
+        mToken.setCurrentIndex(13e11);
 
-        assertEq(mEarnerManager.currentIndex(), 1_200000000000);
+        assertEq(mEarnerManager.currentIndex(), 12e11);
     }
 }

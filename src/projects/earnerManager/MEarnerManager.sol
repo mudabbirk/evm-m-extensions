@@ -386,15 +386,16 @@ contract MEarnerManager is IMEarnerManager, AccessControlUpgradeable, MEarnerMan
 
         emit AccountInfoSet(account, status, feeRate);
 
-        // Set up a new whitelisted account
+        // Claim yield for an `account` as the action below will lead to the change in the account info.
+        // NOTE: Handle addresses being re-whitelisted by claiming any previously accrued yield to the `feeRecipient`.
+        claimFor(account);
+
+        // Set up a new whitelisted account.
         if (!isWhitelisted_ && status) {
             accountInfo_.isWhitelisted = true;
             accountInfo_.feeRate = feeRate;
             return;
         }
-
-        // Claim yield as the action below will lead to the change in whitelisted account info.
-        claimFor(account);
 
         if (!status) {
             // Remove whitelisted account info.
