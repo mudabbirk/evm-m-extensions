@@ -124,7 +124,7 @@ contract MYieldFee is IContinuousIndexing, IMYieldFee, AccessControlUpgradeable,
     /* ============ Interactive Functions ============ */
 
     /// @inheritdoc IMYieldFee
-    function claimYieldFor(address account) external returns (uint256) {
+    function claimYieldFor(address account) public returns (uint256) {
         if (account == address(0)) revert ZeroAccount();
 
         uint256 yield_ = accruedYieldOf(account);
@@ -249,8 +249,8 @@ contract MYieldFee is IContinuousIndexing, IMYieldFee, AccessControlUpgradeable,
 
         if ($.claimRecipients[account] == claimRecipient) return;
 
-        // Optionally consider claiming yield for the previous claim recipient.
-        // claimYieldFor(account);
+        // NOTE: Optionally consider not claiming yield for the previous claim recipient.
+        claimYieldFor(account);
 
         $.claimRecipients[account] = claimRecipient;
 

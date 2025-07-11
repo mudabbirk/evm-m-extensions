@@ -242,15 +242,15 @@ contract MYieldFeeUnitTests is BaseUnitTest {
         assertEq(mYieldFee.balanceOf(bob), bobBalance);
         assertEq(mYieldFee.accruedYieldOf(alice), 0);
 
+        vm.prank(claimRecipientManager);
+        mYieldFee.setClaimRecipient(alice, carol);
+
         // Another 10% index growth
         vm.warp(startTimestamp + 30_057_038 * 2);
         assertEq(mYieldFee.currentIndex(), 1_164738254609);
 
         yieldAmount = 79_230399;
         uint240 bobYieldAmount = 6_277456;
-
-        vm.prank(claimRecipientManager);
-        mYieldFee.setClaimRecipient(alice, carol);
 
         assertEq(mYieldFee.claimRecipientFor(alice), carol);
 
@@ -618,6 +618,33 @@ contract MYieldFeeUnitTests is BaseUnitTest {
         mYieldFee.setClaimRecipient(alice, newClaimRecipient);
 
         assertEq(mYieldFee.claimRecipientFor(alice), newClaimRecipient);
+    }
+
+    function test_setClaimRecipient_claimYield() external {
+        uint240 yieldAmount = 79_230399;
+        uint240 aliceBalance = 1_000e6;
+
+        mToken.setBalanceOf(address(mYieldFee), yieldAmount);
+        mYieldFee.setAccountOf(alice, aliceBalance, 1_000e6);
+        mYieldFee.setIsEarningEnabled(true);
+        mYieldFee.setLatestRate(mYiedFeeEarnerRate);
+
+        // 10% index growth
+        vm.warp(startTimestamp + 30_057_038);
+        assertEq(mYieldFee.currentIndex(), 1_079230399224);
+
+        vm.expectEmit();
+        emit IMYieldFee.YieldClaimed(alice, alice, yieldAmount);
+
+        vm.prank(claimRecipientManager);
+        mYieldFee.setClaimRecipient(alice, bob);
+
+        assertEq(mYieldFee.balanceOf(alice), aliceBalance + yieldAmount);
+        assertEq(mYieldFee.accruedYieldOf(alice), 0);
+
+        vm.prank(alice);
+        uint256 yield = mYieldFee.claimYieldFor(alice);
+        assertEq(yield, 0);
     }
 
     /* ============ currentIndex ============ */

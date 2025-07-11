@@ -85,10 +85,10 @@ contract MYieldToOne is IMYieldToOne, MYieldToOneStorageLayout, MExtension, Blac
     /* ============ Interactive Functions ============ */
 
     /// @inheritdoc IMYieldToOne
-    function claimYield() external returns (uint256) {
+    function claimYield() public returns (uint256) {
         uint256 yield_ = yield();
 
-        if (yield_ == 0) revert NoYield();
+        if (yield_ == 0) return 0;
 
         emit YieldClaimed(yield_);
 
@@ -99,6 +99,9 @@ contract MYieldToOne is IMYieldToOne, MYieldToOneStorageLayout, MExtension, Blac
 
     /// @inheritdoc IMYieldToOne
     function setYieldRecipient(address account) external onlyRole(YIELD_RECIPIENT_MANAGER_ROLE) {
+        // Claim yield for the previous yield recipient.
+        claimYield();
+
         _setYieldRecipient(account);
     }
 

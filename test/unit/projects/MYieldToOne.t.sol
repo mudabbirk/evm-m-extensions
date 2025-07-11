@@ -519,10 +519,10 @@ contract MYieldToOneUnitTests is BaseUnitTest {
 
     /* ============ claimYield ============ */
     function test_claimYield_noYield() external {
-        vm.expectRevert(IMYieldToOne.NoYield.selector);
-
         vm.prank(alice);
-        mYieldToOne.claimYield();
+        uint256 yield = mYieldToOne.claimYield();
+
+        assertEq(yield, 0);
     }
 
     function test_claimYield() external {
@@ -629,5 +629,21 @@ contract MYieldToOneUnitTests is BaseUnitTest {
         mYieldToOne.setYieldRecipient(alice);
 
         assertEq(mYieldToOne.yieldRecipient(), alice);
+    }
+
+    function test_setYieldRecipient_claimYield() public {
+        assertEq(mYieldToOne.yieldRecipient(), yieldRecipient);
+
+        mToken.setBalanceOf(address(mYieldToOne), mYieldToOne.totalSupply() + 500);
+
+        vm.expectEmit();
+        emit IMYieldToOne.YieldClaimed(500);
+
+        vm.prank(yieldRecipientManager);
+        mYieldToOne.setYieldRecipient(alice);
+
+        assertEq(mYieldToOne.yieldRecipient(), alice);
+        assertEq(mYieldToOne.yield(), 0);
+        assertEq(mYieldToOne.balanceOf(yieldRecipient), 500);
     }
 }
