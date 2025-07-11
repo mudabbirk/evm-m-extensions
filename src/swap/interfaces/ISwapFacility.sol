@@ -26,10 +26,10 @@ interface ISwapFacility {
     /// @notice Thrown in the constructor if SwapAdapter is 0x0.
     error ZeroSwapAdapter();
 
-    /// @notice Thrown in `swap` and `swapM` functions if the extension is not TTG approved earner.
+    /// @notice Thrown in `swap*` functions if the extension is not TTG approved earner.
     error NotApprovedExtension(address extension);
 
-    /// @notice Thrown in `swapOutM` and `swapOutMWithPermit` functions if the caller is not approved swapper.
+    /// @notice Thrown in `swapOutM` function if the caller is not approved swapper.
     error NotApprovedSwapper(address account);
 
     /* ============ Interactive Functions ============ */
