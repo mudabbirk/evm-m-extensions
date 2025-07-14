@@ -45,18 +45,18 @@ contract UniswapV3SwapAdapter is IUniswapV3SwapAdapter, AccessControl, Reentranc
 
     /**
      * @notice Constructs UniswapV3SwapAdapter contract
-     * @param  wrappedMToken_ The address of Wrapped $M token.
-     * @param  swapFacility_  The address of SwapFacility.
-     * @param  uniswapRouter_ The address of the Uniswap V3 swap router.
-     * @param  admin          The address of the admin.
-     * @param  tokens         The list of whitelisted tokens.
+     * @param  wrappedMToken_      The address of Wrapped $M token.
+     * @param  swapFacility_       The address of SwapFacility.
+     * @param  uniswapRouter_      The address of the Uniswap V3 swap router.
+     * @param  admin               The address of the admin.
+     * @param  whitelistedTokens_  The list of whitelisted tokens.
      */
     constructor(
         address wrappedMToken_,
         address swapFacility_,
         address uniswapRouter_,
         address admin,
-        address[] memory tokens
+        address[] memory whitelistedTokens_
     ) {
         if ((wrappedMToken = wrappedMToken_) == address(0)) revert ZeroWrappedMToken();
         if ((swapFacility = swapFacility_) == address(0)) revert ZeroSwapFacility();
@@ -64,8 +64,8 @@ contract UniswapV3SwapAdapter is IUniswapV3SwapAdapter, AccessControl, Reentranc
 
         _grantRole(DEFAULT_ADMIN_ROLE, admin);
 
-        for (uint256 i; i < tokens.length; i++) {
-            _whitelistToken(tokens[i], true);
+        for (uint256 i; i < whitelistedTokens_.length; ++i) {
+            _whitelistToken(whitelistedTokens_[i], true);
         }
     }
 
@@ -131,8 +131,6 @@ contract UniswapV3SwapAdapter is IUniswapV3SwapAdapter, AccessControl, Reentranc
         _revertIfInvalidSwapOutPath(tokenOut, path);
         _revertIfZeroRecipient(recipient);
 
-        uint256 extensionInBalanceBefore = IERC20(extensionIn).balanceOf(address(this));
-
         IERC20(extensionIn).transferFrom(msg.sender, address(this), amountIn);
 
         // Swap the extensionIn to Wrapped $M token
@@ -154,12 +152,14 @@ contract UniswapV3SwapAdapter is IUniswapV3SwapAdapter, AccessControl, Reentranc
             })
         );
 
+        uint256 wrappedMBalanceBefore = IERC20(wrappedMToken).balanceOf(address(this));
+
         // NOTE: UniswapV3 router allows exactInput operations to not fully utilize
         //       the given input token amount if the pool does not have sufficient liquidity.
         //       Refund any remaining input token balance to the caller.
-        uint256 remainingBalance = IERC20(extensionIn).balanceOf(address(this)) - extensionInBalanceBefore;
+        uint256 remainingBalance = IERC20(wrappedMToken).balanceOf(address(this)) - wrappedMBalanceBefore;
         if (remainingBalance > 0) {
-            IERC20(extensionIn).transfer(msg.sender, remainingBalance);
+            IERC20(wrappedMToken).transfer(msg.sender, remainingBalance);
         }
 
         emit SwappedOut(extensionIn, amountIn, tokenOut, amountOut, recipient);
@@ -176,6 +176,7 @@ contract UniswapV3SwapAdapter is IUniswapV3SwapAdapter, AccessControl, Reentranc
 
     function _whitelistToken(address token, bool isWhitelisted) private {
         if (token == address(0)) revert ZeroToken();
+
         whitelistedTokens[token] = isWhitelisted;
 
         emit TokenWhitelisted(token, isWhitelisted);
