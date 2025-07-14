@@ -207,15 +207,9 @@ contract SwapFacility is ISwapFacility, AccessControlUpgradeable, ReentrancyLock
     function _swap(address extensionIn, address extensionOut, uint256 amount, address recipient) private {
         IERC20(extensionIn).transferFrom(msg.sender, address(this), amount);
 
-        uint256 balanceBefore = _mBalanceOf(address(this));
-
         // NOTE: Amount and recipient validation is performed in Extensions.
         // Recipient parameter is ignored in the MExtension, keeping it for backward compatibility.
         IMExtension(extensionIn).unwrap(address(this), amount);
-
-        // NOTE: Calculate amount as $M Token balance difference
-        //       to account for rounding errors.
-        amount = _mBalanceOf(address(this)) - balanceBefore;
 
         IERC20(mToken).approve(extensionOut, amount);
         IMExtension(extensionOut).wrap(recipient, amount);
@@ -246,15 +240,9 @@ contract SwapFacility is ISwapFacility, AccessControlUpgradeable, ReentrancyLock
     function _swapOutM(address extensionIn, uint256 amount, address recipient) private {
         IERC20(extensionIn).transferFrom(msg.sender, address(this), amount);
 
-        uint256 balanceBefore = _mBalanceOf(address(this));
-
         // NOTE: Amount and recipient validation is performed in Extensions.
         // Recipient parameter is ignored in the MExtension, keeping it for backward compatibility.
         IMExtension(extensionIn).unwrap(address(this), amount);
-
-        // NOTE: Calculate amount as $M Token balance difference
-        //       to account for rounding errors.
-        amount = _mBalanceOf(address(this)) - balanceBefore;
         IERC20(mToken).transfer(recipient, amount);
 
         emit SwappedOutM(extensionIn, amount, recipient);

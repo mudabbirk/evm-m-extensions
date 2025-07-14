@@ -80,7 +80,35 @@ contract SwapFacilityIntegrationTest is BaseIntegrationTest {
 
         uint256 wrappedMBalanceAfter = IERC20(WRAPPED_M).balanceOf(USER);
 
-        assertApproxEqAbs(wrappedMBalanceAfter, wrappedMBalanceBefore + amount, 2);
+        assertEq(wrappedMBalanceAfter, wrappedMBalanceBefore + amount);
+        assertEq(mYieldToOne.balanceOf(USER), 0);
+    }
+
+    /// @dev Using lower fuzz runs and depth to avoid burning through RPC requests in CI
+    /// forge-config: default.fuzz.runs = 100
+    /// forge-config: default.fuzz.depth = 20
+    /// forge-config: ci.fuzz.runs = 10
+    /// forge-config: ci.fuzz.depth = 2
+    function testFuzz_swap_mYieldToOne_to_wrappedM(uint256 amount) public {
+        // Ensure the amount is not zero and does not exceed the user's balance
+        vm.assume(amount > 0);
+        vm.assume(amount <= IERC20(address(mToken)).balanceOf(mSource));
+
+        uint256 wrappedMBalanceBefore = IERC20(WRAPPED_M).balanceOf(USER);
+
+        _giveM(USER, amount);
+        vm.startPrank(USER);
+        IERC20(address(mToken)).approve(address(swapFacility), amount);
+        swapFacility.swapInM(address(mYieldToOne), amount, USER);
+
+        assertEq(mYieldToOne.balanceOf(USER), amount);
+
+        mYieldToOne.approve(address(swapFacility), amount);
+        swapFacility.swap(address(mYieldToOne), WRAPPED_M, amount, USER);
+
+        uint256 wrappedMBalanceAfter = IERC20(WRAPPED_M).balanceOf(USER);
+
+        assertEq(wrappedMBalanceAfter, wrappedMBalanceBefore + amount);
         assertEq(mYieldToOne.balanceOf(USER), 0);
     }
 
@@ -141,6 +169,27 @@ contract SwapFacilityIntegrationTest is BaseIntegrationTest {
         assertEq(mYieldToOne.balanceOf(USER), amount);
     }
 
+    /// @dev Using lower fuzz runs and depth to avoid burning through RPC requests in CI
+    /// forge-config: default.fuzz.runs = 100
+    /// forge-config: default.fuzz.depth = 20
+    /// forge-config: ci.fuzz.runs = 10
+    /// forge-config: ci.fuzz.depth = 2
+    function testFuzz_swapInM(uint256 amount) public {
+        // Ensure the amount is not zero and does not exceed the source balance
+        vm.assume(amount > 0);
+        vm.assume(amount <= IERC20(address(mToken)).balanceOf(mSource));
+
+        _giveM(USER, amount);
+
+        assertEq(mYieldToOne.balanceOf(USER), 0);
+
+        vm.startPrank(USER);
+        IERC20(address(mToken)).approve(address(swapFacility), amount);
+        swapFacility.swapInM(address(mYieldToOne), amount, USER);
+
+        assertEq(mYieldToOne.balanceOf(USER), amount);
+    }
+
     function test_swapInMWithPermit_vrs() public {
         uint256 amount = 1_000_000;
 
@@ -191,6 +240,35 @@ contract SwapFacilityIntegrationTest is BaseIntegrationTest {
 
     function test_swapOutM() public {
         uint256 amount = 1_000_000;
+
+        vm.startPrank(USER);
+        IERC20(address(mToken)).approve(address(swapFacility), amount);
+        swapFacility.swapInM(address(mYieldToOne), amount, USER);
+
+        assertEq(mYieldToOne.balanceOf(USER), amount);
+
+        uint256 mBalanceBefore = IERC20(address(mToken)).balanceOf(USER);
+
+        mYieldToOne.approve(address(swapFacility), amount);
+        swapFacility.swapOutM(address(mYieldToOne), amount, USER);
+
+        uint256 mBalanceAfter = IERC20(address(mToken)).balanceOf(USER);
+
+        assertEq(mYieldToOne.balanceOf(USER), 0);
+        assertEq(mBalanceAfter - mBalanceBefore, amount);
+    }
+
+    /// @dev Using lower fuzz runs and depth to avoid burning through RPC requests in CI
+    /// forge-config: default.fuzz.runs = 100
+    /// forge-config: default.fuzz.depth = 20
+    /// forge-config: ci.fuzz.runs = 10
+    /// forge-config: ci.fuzz.depth = 2
+    function testFuzz_swapOutM(uint256 amount) public {
+        // Ensure the amount is not zero and does not exceed the source balance
+        vm.assume(amount > 0);
+        vm.assume(amount <= IERC20(address(mToken)).balanceOf(mSource));
+
+        _giveM(USER, amount);
 
         vm.startPrank(USER);
         IERC20(address(mToken)).approve(address(swapFacility), amount);
