@@ -9,6 +9,7 @@ import { EarnerManager } from "../../lib/wrapped-m-token/src/EarnerManager.sol";
 import { WrappedMTokenMigratorV1 } from "../../lib/wrapped-m-token/src/WrappedMTokenMigratorV1.sol";
 import { Proxy } from "../../lib/common/src/Proxy.sol";
 
+import { IBlacklistable } from "../../src/components/IBlacklistable.sol";
 import { MYieldFee } from "../../src/projects/yieldToAllWithFee/MYieldFee.sol";
 import { MYieldToOne } from "../../src/projects/yieldToOne/MYieldToOne.sol";
 import { SwapFacility } from "../../src/swap/SwapFacility.sol";
@@ -50,24 +51,19 @@ contract SwapFacilityIntegrationTest is BaseIntegrationTest {
         address earnerManagerImplementation = address(new EarnerManager(registrar, admin));
         address earnerManager = address(new Proxy(earnerManagerImplementation));
         address wrappedMTokenImplementationV2 = address(
-            new WrappedMToken(
-                address(mToken),
-                registrar,
-                earnerManager,
-                admin,
-                address(swapFacility),
-                admin
-            )
+            new WrappedMToken(address(mToken), registrar, earnerManager, admin, address(swapFacility), admin)
         );
 
         // Ignore earners migration
-        address wrappedMTokenMigratorV1 = address(new WrappedMTokenMigratorV1(wrappedMTokenImplementationV2, new address[](0)));
+        address wrappedMTokenMigratorV1 = address(
+            new WrappedMTokenMigratorV1(wrappedMTokenImplementationV2, new address[](0))
+        );
 
         vm.prank(WrappedMToken(WRAPPED_M).migrationAdmin());
         WrappedMToken(WRAPPED_M).migrate(wrappedMTokenMigratorV1);
     }
 
-    function test_swap() public {
+    function test_swap_mYieldToOne_to_wrappedM() public {
         uint256 amount = 1_000_000;
         uint256 wrappedMBalanceBefore = IERC20(WRAPPED_M).balanceOf(USER);
 
@@ -84,6 +80,19 @@ contract SwapFacilityIntegrationTest is BaseIntegrationTest {
 
         assertApproxEqAbs(wrappedMBalanceAfter, wrappedMBalanceBefore + amount, 2);
         assertEq(mYieldToOne.balanceOf(USER), 0);
+    }
+
+    function test_swap_wrappedM_to_mYieldToOne_blacklistedAccount() public {
+        uint256 amount = 1_000_000;
+
+        vm.prank(blacklistManager);
+        mYieldToOne.blacklist(USER);
+
+        vm.startPrank(USER);
+        IERC20(WRAPPED_M).approve(address(swapFacility), amount);
+
+        vm.expectRevert(abi.encodeWithSelector(IBlacklistable.AccountBlacklisted.selector, USER));
+        swapFacility.swap(WRAPPED_M, address(mYieldToOne), amount, USER);
     }
 
     function test_swapWithPermit_vrs() public {
@@ -110,7 +119,7 @@ contract SwapFacilityIntegrationTest is BaseIntegrationTest {
             0,
             block.timestamp
         );
-        
+
         // Swap mYieldToOne to Wrapped M
         swapFacility.swapWithPermit(address(mYieldToOne), WRAPPED_M, amount, alice, block.timestamp, v, r, s);
 
@@ -222,77 +231,11 @@ contract SwapFacilityIntegrationTest is BaseIntegrationTest {
             0,
             block.timestamp
         );
-        
+
         // Swap mYieldToOne to M
         swapFacility.swapOutMWithPermit(address(mYieldToOne), amount, alice, block.timestamp, v, r, s);
 
         assertEq(IERC20(address(mToken)).balanceOf(alice), amount);
         assertEq(mYieldToOne.balanceOf(alice), 0);
-    }
-
-
-    function test_swapInToken_USDC_to_wrappedM() public {
-        uint256 amountIn = 1_000_000;
-        uint256 minAmountOut = 997_000;
-
-        uint256 usdcBalanceBefore = IERC20(USDC).balanceOf(USER);
-        uint256 wrappedMBalanceBefore = IERC20(WRAPPED_M).balanceOf(USER);
-
-        vm.startPrank(USER);
-        IERC20(USDC).approve(address(swapFacility), amountIn);
-        swapFacility.swapInToken(USDC, amountIn, WRAPPED_M, minAmountOut, USER, "");
-
-        uint256 usdcBalanceAfter = IERC20(USDC).balanceOf(USER);
-        uint256 wrappedMBalanceAfter = IERC20(WRAPPED_M).balanceOf(USER);
-
-        assertEq(usdcBalanceAfter, usdcBalanceBefore - amountIn);
-        assertApproxEqAbs(wrappedMBalanceAfter, wrappedMBalanceBefore + amountIn, 1000);
-    }
-
-    function test_swapInToken_USDC_to_mYieldToOne() public {
-        uint256 amountIn = 1_000_000;
-        uint256 minAmountOut = 997_000;
-
-        uint256 usdcBalanceBefore = IERC20(USDC).balanceOf(USER);
-        uint256 mYieldToOneBalanceBefore = mYieldToOne.balanceOf(USER);
-
-        vm.startPrank(USER);
-        IERC20(USDC).approve(address(swapFacility), amountIn);
-        swapFacility.swapInToken(USDC, amountIn, address(mYieldToOne), minAmountOut, USER, "");
-
-        uint256 usdcBalanceAfter = IERC20(USDC).balanceOf(USER);
-        uint256 mYieldToOneBalanceAfter = mYieldToOne.balanceOf(USER);
-
-        assertEq(usdcBalanceAfter, usdcBalanceBefore - amountIn);
-        assertApproxEqAbs(mYieldToOneBalanceAfter, mYieldToOneBalanceBefore + amountIn, 1000);
-    }
-
-    function test_swapOutToken_wrappedM_to_USDC() public {
-        uint256 amountIn = 1_000_000;
-        uint256 minAmountOut = 997_000;
-        uint256 usdcBalanceBefore = IERC20(USDC).balanceOf(USER);
-
-        vm.startPrank(USER);
-        IERC20(WRAPPED_M).approve(address(swapFacility), amountIn);
-        swapFacility.swapOutToken(WRAPPED_M, amountIn, USDC, minAmountOut, USER, "");
-
-        uint256 usdcBalanceAfter = IERC20(USDC).balanceOf(USER);
-        assertApproxEqAbs(usdcBalanceAfter, usdcBalanceBefore + amountIn, 1000);
-    }
-
-    function test_swapOutToken_mYieldToOne_to_USDC() public {
-        uint256 amountIn = 1_000_000;
-        uint256 minAmountOut = 997_000;
-        uint256 usdcBalanceBefore = IERC20(USDC).balanceOf(USER);
-
-        vm.startPrank(USER);
-        IERC20(address(mToken)).approve(address(swapFacility), amountIn);
-        swapFacility.swapInM(address(mYieldToOne), amountIn, USER);
-
-        mYieldToOne.approve(address(swapFacility), amountIn);
-        swapFacility.swapOutToken(address(mYieldToOne), amountIn, USDC, minAmountOut, USER, "");
-
-        uint256 usdcBalanceAfter = IERC20(USDC).balanceOf(USER);
-        assertApproxEqAbs(usdcBalanceAfter, usdcBalanceBefore + amountIn, 1000);
     }
 }

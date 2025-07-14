@@ -83,24 +83,25 @@ contract BaseIntegrationTest is Helpers, Test {
         (alice, aliceKey) = makeAddrAndKey("alice");
         accounts = [alice, bob, carol, charlie, david];
 
+        swapFacility = SwapFacility(
+            UnsafeUpgrades.deployTransparentProxy(
+                address(new SwapFacility(address(mToken), address(registrar))),
+                admin,
+                abi.encodeWithSelector(SwapFacility.initialize.selector, admin)
+            )
+        );
+
         address[] memory whitelistedTokens = new address[](3);
         whitelistedTokens[0] = WRAPPED_M;
         whitelistedTokens[1] = USDC;
         whitelistedTokens[2] = USDT;
 
         swapAdapter = new UniswapV3SwapAdapter(
-            WRAPPED_M, // baseToken (wrapped M)
+            WRAPPED_M,
+            address(swapFacility),
             UNISWAP_V3_ROUTER,
             admin,
             whitelistedTokens
-        );
-
-        swapFacility = SwapFacility(
-            UnsafeUpgrades.deployTransparentProxy(
-                address(new SwapFacility(address(mToken), address(registrar), address(swapAdapter))),
-                admin,
-                abi.encodeWithSelector(SwapFacility.initialize.selector, admin)
-            )
         );
 
         mExtensionDeployOptions.constructorData = abi.encode(address(mToken), address(swapFacility));
@@ -110,6 +111,7 @@ contract BaseIntegrationTest is Helpers, Test {
         swapFacility.grantRole(M_SWAPPER_ROLE, alice);
         swapFacility.grantRole(M_SWAPPER_ROLE, bob);
         swapFacility.grantRole(M_SWAPPER_ROLE, feeRecipient);
+        swapFacility.setTrustedRouter(address(swapAdapter), true);
 
         vm.stopPrank();
     }
@@ -226,7 +228,16 @@ contract BaseIntegrationTest is Helpers, Test {
                     abi.encodePacked(
                         "\x19\x01",
                         IMExtension(extension).DOMAIN_SEPARATOR(),
-                        keccak256(abi.encode(IMExtension(extension).PERMIT_TYPEHASH(), account, spender, amount, nonce, deadline))
+                        keccak256(
+                            abi.encode(
+                                IMExtension(extension).PERMIT_TYPEHASH(),
+                                account,
+                                spender,
+                                amount,
+                                nonce,
+                                deadline
+                            )
+                        )
                     )
                 )
             );
