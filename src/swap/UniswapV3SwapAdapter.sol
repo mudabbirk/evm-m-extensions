@@ -176,6 +176,7 @@ contract UniswapV3SwapAdapter is IUniswapV3SwapAdapter, AccessControl, Reentranc
 
     function _whitelistToken(address token, bool isWhitelisted) private {
         if (token == address(0)) revert ZeroToken();
+        if (whitelistedTokens[token] == isWhitelisted) return;
 
         whitelistedTokens[token] = isWhitelisted;
 
