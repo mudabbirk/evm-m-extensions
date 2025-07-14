@@ -14,6 +14,8 @@ import { MYieldFee } from "../../src/projects/yieldToAllWithFee/MYieldFee.sol";
 import { MYieldToOne } from "../../src/projects/yieldToOne/MYieldToOne.sol";
 import { SwapFacility } from "../../src/swap/SwapFacility.sol";
 
+import { MYieldToOneHarness } from "../harness/MYieldToOneHarness.sol";
+
 import { BaseIntegrationTest } from "../utils/BaseIntegrationTest.sol";
 
 contract SwapFacilityIntegrationTest is BaseIntegrationTest {
@@ -25,12 +27,12 @@ contract SwapFacilityIntegrationTest is BaseIntegrationTest {
 
         super.setUp();
 
-        mYieldToOne = MYieldToOne(
+        mYieldToOne = MYieldToOneHarness(
             Upgrades.deployTransparentProxy(
-                "MYieldToOne.sol:MYieldToOne",
+                "MYieldToOneHarness.sol:MYieldToOneHarness",
                 admin,
                 abi.encodeWithSelector(
-                    MYieldToOne.initialize.selector,
+                    MYieldToOneHarness.initialize.selector,
                     NAME,
                     SYMBOL,
                     yieldRecipient,

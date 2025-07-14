@@ -176,13 +176,13 @@ abstract contract MExtension is IMExtension, ERC20ExtendedUpgradeable {
         // NOTE: The behavior of `IMTokenLike.transferFrom` is known, so its return can be ignored.
         IMTokenLike(mToken).transferFrom(msg.sender, address(this), amount);
 
+        // NOTE: This method is overridden by the inheriting M Extension contract.
         // NOTE: Mints precise amount of $M Extension token to `recipient`.
         //       Option 1: $M transfer from an $M earner to another $M earner ($M Extension in earning state): rounds up → rounds up,
         //                 0, 1, or XX extra wei may be locked in M Extension compared to the minted amount of $M Extension token.
         //       Option 2: $M transfer from an $M non-earner to an $M earner ($M Extension in earning state): precise $M transfer → rounds down,
         //                 0, -1, or -XX wei may be locked in $M Extension compared to the minted amount of $M Extension token.
         //
-        // This method will be overridden by the inheriting M Extension contract.
         _mint(recipient, amount);
     }
 
@@ -199,12 +199,11 @@ abstract contract MExtension is IMExtension, ERC20ExtendedUpgradeable {
 
         _revertIfInsufficientBalance(msg.sender, balanceOf(msg.sender), amount);
 
+        // NOTE: This method will be overridden by the inheriting M Extension contract.
         // NOTE: Computes the actual decrease in the $M balance of the $M Extension contract.
         //       Option 1: $M transfer from an $M earner ($M Extension in earning state) to another $M earner: round up → rounds up.
         //       Option 2: $M transfer from an $M earner ($M Extension in earning state) to an $M non-earner: round up → precise $M transfer.
         //       In both cases, 0, 1, or XX extra wei may be deducted from the $M Extension contract's $M balance compared to the burned amount of $M Extension token.
-        //
-        // This method will be overridden by the inheriting M Extension contract.
         // NOTE: Always burn from SwapFacility as it is the only contract that can call this function.
         _burn(msg.sender, amount);
 
@@ -214,14 +213,14 @@ abstract contract MExtension is IMExtension, ERC20ExtendedUpgradeable {
     }
 
     /**
-     * @dev Mints `amount` tokens to `recipient`.
+     * @dev   Mints `amount` tokens to `recipient`.
      * @param recipient The address to which the tokens will be minted.
      * @param amount    The amount of tokens to mint.
      */
     function _mint(address recipient, uint256 amount) internal virtual;
 
     /**
-     * @dev Burns `amount` tokens from `account`.
+     * @dev   Burns `amount` tokens from `account`.
      * @param account The address from which the tokens will be burned.
      * @param amount  The amount of tokens to burn.
      */

@@ -38,7 +38,7 @@ contract MSpokeYieldFeeUnitTests is BaseUnitTest {
                     YIELD_FEE_RATE,
                     feeRecipient,
                     admin,
-                    yieldFeeManager,
+                    feeManager,
                     claimRecipientManager
                 ),
                 deployOptions
@@ -56,7 +56,7 @@ contract MSpokeYieldFeeUnitTests is BaseUnitTest {
         assertEq(mYieldFee.feeRate(), YIELD_FEE_RATE);
         assertEq(mYieldFee.feeRecipient(), feeRecipient);
         assertTrue(mYieldFee.hasRole(DEFAULT_ADMIN_ROLE, admin));
-        assertTrue(mYieldFee.hasRole(FEE_MANAGER_ROLE, yieldFeeManager));
+        assertTrue(mYieldFee.hasRole(FEE_MANAGER_ROLE, feeManager));
         assertTrue(mYieldFee.hasRole(CLAIM_RECIPIENT_MANAGER_ROLE, claimRecipientManager));
         assertEq(mYieldFee.rateOracle(), address(rateOracle));
     }
@@ -129,8 +129,6 @@ contract MSpokeYieldFeeUnitTests is BaseUnitTest {
         // Re-enable earning
         mYieldFee.enableEarning();
 
-        // mYiedFeeEarnerRate = _getEarnerRate(M_EARNER_RATE, YIELD_FEE_RATE);
-        // mYieldFee.setLatestRate(mYiedFeeEarnerRate);
         assertEq(mYieldFee.latestRate(), mYiedFeeEarnerRate);
 
         // Index was just re-enabled, so value should still be the same
@@ -257,29 +255,10 @@ contract MSpokeYieldFeeUnitTests is BaseUnitTest {
 
     /* ============ Fuzz Utils ============ */
 
-    function _setupAccount(
-        address account,
-        uint240 balanceWithYield,
-        uint240 balance
-    ) internal returns (uint112 principal_) {
-        principal_ = IndexingMath.getPrincipalAmountRoundedDown(balanceWithYield, mYieldFee.currentIndex());
-
-        mYieldFee.setAccountOf(account, balance, principal_);
-        mYieldFee.setTotalPrincipal(mYieldFee.totalPrincipal() + principal_);
-        mYieldFee.setTotalSupply(mYieldFee.totalSupply() + balance);
-    }
-
-    function _setupSupply(uint240 totalSupplyWithYield, uint240 totalSupply) internal returns (uint112 principal_) {
-        principal_ = IndexingMath.getPrincipalAmountRoundedDown(totalSupplyWithYield, mYieldFee.currentIndex());
-
-        mYieldFee.setTotalPrincipal(mYieldFee.totalPrincipal() + principal_);
-        mYieldFee.setTotalSupply(mYieldFee.totalSupply() + totalSupply);
-    }
-
     function _setupYieldFeeRate(uint16 rate) internal returns (uint16) {
         rate = uint16(bound(rate, 0, ONE_HUNDRED_PERCENT));
 
-        vm.prank(yieldFeeManager);
+        vm.prank(feeManager);
         mYieldFee.setFeeRate(rate);
 
         return rate;
@@ -295,19 +274,5 @@ contract MSpokeYieldFeeUnitTests is BaseUnitTest {
         latestIndex = uint128(bound(latestIndex, EXP_SCALED_ONE, 10_000000000000));
         mYieldFee.setLatestIndex(latestIndex);
         return latestIndex;
-    }
-
-    function _setupIndex(bool earningEnabled, uint32 rate, uint128 latestIndex) internal returns (uint128) {
-        mYieldFee.setLatestIndex(bound(latestIndex, EXP_SCALED_ONE, 10_000000000000));
-
-        if (earningEnabled) {
-            // Earning is enabled when latestRate != 0
-            _setupLatestRate(rate);
-        } else {
-            // Earning is disabled when latestRate == 0
-            mYieldFee.setLatestRate(0);
-        }
-
-        return mYieldFee.currentIndex();
     }
 }

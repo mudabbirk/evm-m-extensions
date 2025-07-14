@@ -23,7 +23,20 @@ contract MExtensionHarness is MExtension {
         return _totalSupply;
     }
 
-    function _mint(address recipient, uint256 amount) internal override {}
-    function _burn(address account, uint256 amount) internal override {}
-    function _update(address sender, address recipient, uint256 amount) internal override {}
+    function _mint(address recipient, uint256 amount) internal override {
+        _balanceOf[recipient] += amount;
+    }
+
+    function _burn(address account, uint256 amount) internal override {
+        _balanceOf[account] -= amount;
+    }
+
+    function _update(address sender, address recipient, uint256 amount) internal override {
+        _balanceOf[sender] -= amount;
+        _balanceOf[recipient] += amount;
+    }
+
+    function setBalanceOf(address account, uint256 amount) external {
+        _balanceOf[account] = amount;
+    }
 }

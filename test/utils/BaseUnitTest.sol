@@ -48,7 +48,7 @@ contract BaseUnitTest is Helpers, Test {
     address public yieldRecipientManager = makeAddr("yieldRecipientManager");
 
     address public feeRecipient = makeAddr("feeRecipient");
-    address public yieldFeeManager = makeAddr("yieldFeeManager");
+    address public feeManager = makeAddr("feeManager");
     address public claimRecipientManager = makeAddr("claimRecipientManager");
 
     address public alice;
@@ -106,6 +106,10 @@ contract BaseUnitTest is Helpers, Test {
 
     function _getMaxAmount(uint128 index_) internal pure returns (uint240) {
         return (uint240(type(uint112).max) * index_) / EXP_SCALED_ONE;
+    }
+
+    function _getPrincipal(uint256 amount, uint128 index) internal pure returns (uint112) {
+        return IndexingMath.getPrincipalAmountRoundedDown(uint240(amount), index);
     }
 
     /* ============ Fuzz Utils ============ */

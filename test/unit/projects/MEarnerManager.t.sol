@@ -10,6 +10,7 @@ import { Upgrades, UnsafeUpgrades } from "../../../lib/openzeppelin-foundry-upgr
 
 import { IMExtension } from "../../../src/interfaces/IMExtension.sol";
 import { IMEarnerManager } from "../../../src/projects/earnerManager/IMEarnerManager.sol";
+import { ISwapFacility } from "../../../src/swap/interfaces/ISwapFacility.sol";
 
 import { IERC20 } from "../../../lib/common/src/interfaces/IERC20.sol";
 import { IERC20Extended } from "../../../lib/common/src/interfaces/IERC20Extended.sol";
@@ -20,10 +21,12 @@ import { BaseUnitTest } from "../../utils/BaseUnitTest.sol";
 contract MEarnerManagerUnitTests is BaseUnitTest {
     MEarnerManagerHarness public mEarnerManager;
 
+    uint128 public startIndex = 11e11;
+
     function setUp() public override {
         super.setUp();
 
-        mToken.setCurrentIndex(11e11);
+        mToken.setCurrentIndex(startIndex);
 
         mEarnerManager = MEarnerManagerHarness(
             Upgrades.deployTransparentProxy(
@@ -346,7 +349,7 @@ contract MEarnerManagerUnitTests is BaseUnitTest {
         assertEq(mEarnerManager.feeRateOf(bob), 10_000);
     }
 
-    // /* ============ setFeeRecipient ============ */
+    /* ============ setFeeRecipient ============ */
 
     function test_setFeeRecipient_onlyEarnerManager() external {
         vm.expectRevert(
@@ -390,7 +393,7 @@ contract MEarnerManagerUnitTests is BaseUnitTest {
         assertEq(mEarnerManager.feeRateOf(newFeeRecipient), 0);
     }
 
-    // /* ============ claimFor ============ */
+    /* ============ claimFor ============ */
 
     function test_claimFor_zeroAccount() external {
         vm.expectRevert(abi.encodeWithSelector(IMEarnerManager.ZeroAccount.selector));
@@ -590,10 +593,12 @@ contract MEarnerManagerUnitTests is BaseUnitTest {
         uint256 amount = 1_000e6;
         mToken.setBalanceOf(alice, amount);
 
+        vm.mockCall(address(swapFacility), abi.encodeWithSelector(ISwapFacility.msgSender.selector), abi.encode(alice));
+
         vm.expectRevert(abi.encodeWithSelector(IMEarnerManager.NotWhitelisted.selector, alice));
 
-        vm.prank(alice);
-        swapFacility.swapInM(address(mEarnerManager), amount, alice);
+        vm.prank(address(swapFacility));
+        mEarnerManager.wrap(alice, amount);
     }
 
     function test_wrap_notWhitelistedRecipient() external {
@@ -602,26 +607,32 @@ contract MEarnerManagerUnitTests is BaseUnitTest {
 
         mEarnerManager.setAccountOf(alice, 0, 0, true, 1_000);
 
+        vm.mockCall(address(swapFacility), abi.encodeWithSelector(ISwapFacility.msgSender.selector), abi.encode(alice));
+
         vm.expectRevert(abi.encodeWithSelector(IMEarnerManager.NotWhitelisted.selector, bob));
 
-        vm.prank(alice);
-        swapFacility.swapInM(address(mEarnerManager), amount, bob);
+        vm.prank(address(swapFacility));
+        mEarnerManager.wrap(bob, amount);
     }
 
     function test_wrap_insufficientAmount() external {
+        vm.mockCall(address(swapFacility), abi.encodeWithSelector(ISwapFacility.msgSender.selector), abi.encode(alice));
+
         vm.expectRevert(abi.encodeWithSelector(IERC20Extended.InsufficientAmount.selector, 0));
 
-        vm.prank(alice);
-        swapFacility.swapInM(address(mEarnerManager), 0, alice);
+        vm.prank(address(swapFacility));
+        mEarnerManager.wrap(alice, 0);
     }
 
     function test_wrap_invalidRecipient() external {
         mToken.setBalanceOf(alice, 1_000);
 
+        vm.mockCall(address(swapFacility), abi.encodeWithSelector(ISwapFacility.msgSender.selector), abi.encode(alice));
+
         vm.expectRevert(abi.encodeWithSelector(IERC20Extended.InvalidRecipient.selector, address(0)));
 
-        vm.prank(alice);
-        swapFacility.swapInM(address(mEarnerManager), 0, address(0));
+        vm.prank(address(swapFacility));
+        mEarnerManager.wrap(address(0), 1_000e6);
     }
 
     function test_wrap_EarningIsNotEnabled() external {
@@ -641,29 +652,34 @@ contract MEarnerManagerUnitTests is BaseUnitTest {
         mEarnerManager.setAccountOf(alice, 0, 0, true, 1_000);
         mEarnerManager.setAccountOf(bob, 0, 0, true, 1_000);
 
-        mToken.setBalanceOf(alice, 2_000);
+        // M tokens are transferred from Alice to SwapFacility then to MEarnerManager
+        mToken.setBalanceOf(address(swapFacility), 2_000);
 
-        assertEq(mToken.balanceOf(alice), 2_000);
+        assertEq(mToken.balanceOf(address(swapFacility)), 2_000);
         assertEq(mEarnerManager.totalSupply(), 0);
         assertEq(mEarnerManager.balanceOf(alice), 0);
         assertEq(mEarnerManager.accruedYieldOf(alice), 0);
 
+        vm.mockCall(address(swapFacility), abi.encodeWithSelector(ISwapFacility.msgSender.selector), abi.encode(alice));
+
         vm.expectEmit();
         emit IERC20.Transfer(address(0), alice, 1_000);
 
-        vm.prank(alice);
-        swapFacility.swapInM(address(mEarnerManager), 1_000, alice);
+        vm.prank(address(swapFacility));
+        mEarnerManager.wrap(alice, 1_000);
 
         assertEq(mToken.balanceOf(address(mEarnerManager)), 1_000);
         assertEq(mEarnerManager.totalSupply(), 1_000);
         assertEq(mEarnerManager.balanceOf(alice), 1_000);
         assertEq(mEarnerManager.accruedYieldOf(alice), 0);
 
+        vm.mockCall(address(swapFacility), abi.encodeWithSelector(ISwapFacility.msgSender.selector), abi.encode(alice));
+
         vm.expectEmit();
         emit IERC20.Transfer(address(0), bob, 1_000);
 
-        vm.prank(alice);
-        swapFacility.swapInM(address(mEarnerManager), 1_000, bob);
+        vm.prank(address(swapFacility));
+        mEarnerManager.wrap(bob, 1_000);
 
         assertEq(mToken.balanceOf(alice), 0);
         assertEq(mToken.balanceOf(address(mEarnerManager)), 2_000);
@@ -681,106 +697,166 @@ contract MEarnerManagerUnitTests is BaseUnitTest {
         assertEq(yieldNetOfFees, 81);
     }
 
-    /* ============ _unwrap ============ */
-    function test_unwrap_notWhitelistedAccount() external {
-        uint256 amount = 1_000e6;
-        mToken.setBalanceOf(alice, amount);
+    function testFuzz_wrap(uint128 index, uint256 balance, uint256 wrapAmount) external {
+        index = uint128(bound(index, EXP_SCALED_ONE, 10_000000000000));
+        mToken.setCurrentIndex(index);
 
+        uint256 max = _getMaxAmount(index);
+        balance = bound(balance, 0, max);
+        wrapAmount = bound(wrapAmount, 0, max - balance);
+
+        if (wrapAmount > balance) {
+            return;
+        }
+
+        mToken.setBalanceOf(address(swapFacility), balance);
         mEarnerManager.setAccountOf(alice, 0, 0, true, 1_000);
 
-        vm.prank(alice);
-        swapFacility.swapInM(address(mEarnerManager), amount, alice);
+        vm.mockCall(address(swapFacility), abi.encodeWithSelector(ISwapFacility.msgSender.selector), abi.encode(alice));
 
-        vm.prank(alice);
-        IERC20(address(mEarnerManager)).approve(address(swapFacility), amount);
+        if (wrapAmount == 0) {
+            vm.expectRevert(abi.encodeWithSelector(IERC20Extended.InsufficientAmount.selector, 0));
+        }
 
-        mEarnerManager.setAccountOf(alice, 0, 0, false, 1_000);
+        vm.prank(address(swapFacility));
+        mEarnerManager.wrap(alice, wrapAmount);
+
+        if (wrapAmount == 0) return;
+
+        assertEq(mEarnerManager.balanceOf(alice), wrapAmount);
+    }
+
+    /* ============ _unwrap ============ */
+    function test_unwrap_notWhitelistedAccount() external {
+        mEarnerManager.setAccountOf(address(swapFacility), 1_000e6, 1_000e6, false, 1_000);
+
+        vm.mockCall(address(swapFacility), abi.encodeWithSelector(ISwapFacility.msgSender.selector), abi.encode(alice));
 
         vm.expectRevert(abi.encodeWithSelector(IMEarnerManager.NotWhitelisted.selector, alice));
 
-        vm.prank(alice);
-        swapFacility.swapOutM(address(mEarnerManager), amount, alice);
+        vm.prank(address(swapFacility));
+        mEarnerManager.unwrap(alice, 1_000e6);
     }
 
     function test_unwrap_insufficientAmount() external {
-        mEarnerManager.setAccountOf(alice, 0, 0, true, 1_000);
-
-        vm.prank(alice);
-        IERC20(address(mEarnerManager)).approve(address(swapFacility), 1_000);
-
         vm.expectRevert(abi.encodeWithSelector(IERC20Extended.InsufficientAmount.selector, 0));
 
-        vm.prank(alice);
-        swapFacility.swapOutM(address(mEarnerManager), 0, alice);
+        vm.prank(address(swapFacility));
+        mEarnerManager.unwrap(alice, 0);
     }
 
     function test_unwrap_insufficientBalance() external {
-        mEarnerManager.setAccountOf(alice, 0, 0, true, 1_000);
-        mToken.setBalanceOf(alice, 999);
+        mEarnerManager.setAccountOf(address(swapFacility), 999, 999, true, 1_000);
+        mEarnerManager.setAccountOf(alice, 999, 999, true, 1_000);
 
-        vm.prank(alice);
-        swapFacility.swapInM(address(mEarnerManager), 999, alice);
+        vm.mockCall(address(swapFacility), abi.encodeWithSelector(ISwapFacility.msgSender.selector), abi.encode(alice));
 
-        vm.prank(alice);
-        IERC20(address(mEarnerManager)).approve(address(swapFacility), 1_000);
+        vm.expectRevert(
+            abi.encodeWithSelector(IMExtension.InsufficientBalance.selector, address(swapFacility), 999, 1_000)
+        );
 
-        vm.expectRevert(abi.encodeWithSelector(IMExtension.InsufficientBalance.selector, alice, 999, 1_000));
-
-        vm.prank(alice);
-        swapFacility.swapOutM(address(mEarnerManager), 1_000, alice);
+        vm.prank(address(swapFacility));
+        mEarnerManager.unwrap(alice, 1_000);
     }
 
     function test_unwrap() external {
-        mToken.setBalanceOf(alice, 1000);
-        mEarnerManager.setAccountOf(alice, 0, 0, true, 1_000);
-
-        vm.startPrank(alice);
-        swapFacility.swapInM(address(mEarnerManager), 1000, alice);
+        mToken.setBalanceOf(address(mEarnerManager), 1000);
+        mEarnerManager.setAccountOf(address(swapFacility), 1_000, 1_000, true, 1_000);
+        mEarnerManager.setAccountOf(alice, 1_000, 1_000, true, 1_000);
+        mEarnerManager.setTotalSupply(1_000);
+        mEarnerManager.setTotalPrincipal(1_000);
 
         assertEq(mToken.balanceOf(alice), 0);
         assertEq(mEarnerManager.balanceOf(alice), 1_000);
         assertEq(mEarnerManager.totalSupply(), 1_000);
 
-        mEarnerManager.approve(address(swapFacility), 1_000);
+        vm.mockCall(address(swapFacility), abi.encodeWithSelector(ISwapFacility.msgSender.selector), abi.encode(alice));
 
         vm.expectEmit();
         emit IERC20.Transfer(address(swapFacility), address(0), 1);
 
-        swapFacility.swapOutM(address(mEarnerManager), 1, alice);
+        vm.prank(address(swapFacility));
+        mEarnerManager.unwrap(alice, 1);
 
         assertEq(mEarnerManager.totalSupply(), 999);
-        assertEq(mEarnerManager.balanceOf(alice), 999);
-        assertEq(mToken.balanceOf(alice), 1);
+        assertEq(mEarnerManager.balanceOf(address(swapFacility)), 999);
+
+        // M token is transferred to swap facility and then to Alice
+        assertEq(mToken.balanceOf(address(swapFacility)), 1);
+
+        vm.mockCall(address(swapFacility), abi.encodeWithSelector(ISwapFacility.msgSender.selector), abi.encode(alice));
 
         vm.expectEmit();
         emit IERC20.Transfer(address(swapFacility), address(0), 499);
 
-        swapFacility.swapOutM(address(mEarnerManager), 499, alice);
+        vm.prank(address(swapFacility));
+        mEarnerManager.unwrap(alice, 499);
 
         assertEq(mEarnerManager.totalSupply(), 500);
-        assertEq(mEarnerManager.balanceOf(alice), 500);
-        assertEq(mToken.balanceOf(alice), 500);
+        assertEq(mEarnerManager.balanceOf(address(swapFacility)), 500);
+        assertEq(mToken.balanceOf(address(swapFacility)), 500);
+
+        vm.mockCall(address(swapFacility), abi.encodeWithSelector(ISwapFacility.msgSender.selector), abi.encode(alice));
 
         vm.expectEmit();
         emit IERC20.Transfer(address(swapFacility), address(0), 500);
 
-        swapFacility.swapOutM(address(mEarnerManager), 500, alice);
+        vm.prank(address(swapFacility));
+        mEarnerManager.unwrap(alice, 500);
 
         assertEq(mEarnerManager.totalSupply(), 0);
-        assertEq(mEarnerManager.balanceOf(alice), 0);
-        assertEq(mToken.balanceOf(alice), 1000);
+        assertEq(mEarnerManager.balanceOf(address(swapFacility)), 0);
+        assertEq(mToken.balanceOf(address(swapFacility)), 1000);
+    }
+
+    function testFuzz_unwrap(uint128 index, uint256 balance, uint256 unwrapAmount) external {
+        index = uint128(bound(index, EXP_SCALED_ONE, 10_000000000000));
+        mToken.setCurrentIndex(index);
+
+        uint256 max = _getMaxAmount(index);
+        balance = bound(balance, 0, max);
+        unwrapAmount = bound(unwrapAmount, 0, max);
+
+        uint112 principal = _getPrincipal(balance, index);
+        mEarnerManager.setAccountOf(address(swapFacility), balance, principal, true, 1_000);
+        mEarnerManager.setAccountOf(alice, balance, principal, true, 1_000);
+        mEarnerManager.setTotalSupply(balance);
+        mEarnerManager.setTotalPrincipal(principal);
+
+        mToken.setBalanceOf(address(mEarnerManager), balance);
+
+        uint256 actualBalance = mEarnerManager.balanceOf(alice);
+
+        vm.mockCall(address(swapFacility), abi.encodeWithSelector(ISwapFacility.msgSender.selector), abi.encode(alice));
+
+        if (unwrapAmount == 0) {
+            vm.expectRevert(abi.encodeWithSelector(IERC20Extended.InsufficientAmount.selector, 0));
+        } else if (unwrapAmount > actualBalance) {
+            vm.expectRevert(
+                abi.encodeWithSelector(
+                    IMExtension.InsufficientBalance.selector,
+                    address(swapFacility),
+                    actualBalance,
+                    unwrapAmount
+                )
+            );
+        }
+
+        vm.prank(address(swapFacility));
+        mEarnerManager.unwrap(alice, unwrapAmount);
+
+        if (unwrapAmount == 0 || unwrapAmount > actualBalance) return;
+
+        assertEq(mEarnerManager.balanceOf(address(swapFacility)), actualBalance - unwrapAmount);
+        assertEq(mToken.balanceOf(address(swapFacility)), unwrapAmount);
     }
 
     /* ============ _transfer ============ */
     function test_transfer_insufficientBalance() external {
         uint256 amount = 1_000e6;
-        mToken.setBalanceOf(alice, amount);
 
-        mEarnerManager.setAccountOf(alice, 0, 0, true, 1_000);
+        mEarnerManager.setAccountOf(alice, amount, _getPrincipal(amount, startIndex), true, 1_000);
         mEarnerManager.setAccountOf(bob, 0, 0, true, 1_000);
-
-        vm.prank(alice);
-        swapFacility.swapInM(address(mEarnerManager), amount, alice);
 
         vm.expectRevert(abi.encodeWithSelector(IMExtension.InsufficientBalance.selector, alice, amount, amount + 1));
 
@@ -789,33 +865,20 @@ contract MEarnerManagerUnitTests is BaseUnitTest {
     }
 
     function test_transfer_notWhitelistedSender() external {
-        uint256 amount = 1_000e6;
-        mToken.setBalanceOf(alice, amount);
-
-        mEarnerManager.setAccountOf(alice, 0, 0, true, 1_000);
-
-        vm.prank(alice);
-        swapFacility.swapInM(address(mEarnerManager), amount, alice);
-
         mEarnerManager.setAccountOf(alice, 0, 0, false, 0);
 
         // Alice is not whitelisted, cannot transfer her tokens
         vm.expectRevert(abi.encodeWithSelector(IMEarnerManager.NotWhitelisted.selector, alice));
 
         vm.prank(alice);
-        mEarnerManager.transfer(bob, amount);
+        mEarnerManager.transfer(bob, 1_000e6);
     }
 
     function test_transfer_notWhitelistedApprovedSender() external {
         uint256 amount = 1_000e6;
-        mToken.setBalanceOf(alice, amount);
 
-        mEarnerManager.setAccountOf(alice, 0, 0, true, 1_000);
-        mEarnerManager.setAccountOf(bob, 0, 0, true, 1_000);
-        mEarnerManager.setAccountOf(carol, 0, 0, true, 1_000);
-
-        vm.prank(alice);
-        swapFacility.swapInM(address(mEarnerManager), amount, alice);
+        mEarnerManager.setAccountOf(alice, amount, _getPrincipal(amount, startIndex), true, 1_000);
+        mEarnerManager.setAccountOf(carol, 0, 0, true, 0);
 
         // Alice allows Carol to transfer tokens on her behalf
         vm.prank(alice);
@@ -831,45 +894,26 @@ contract MEarnerManagerUnitTests is BaseUnitTest {
     }
 
     function test_transfer_notWhitelistedRecipient() external {
-        uint256 amount = 1_000e6;
-        mToken.setBalanceOf(alice, amount);
-
         mEarnerManager.setAccountOf(alice, 0, 0, true, 1_000);
-
-        vm.prank(alice);
-        swapFacility.swapInM(address(mEarnerManager), amount, alice);
 
         vm.expectRevert(abi.encodeWithSelector(IMEarnerManager.NotWhitelisted.selector, bob));
 
         vm.prank(alice);
-        mEarnerManager.transfer(bob, amount);
+        mEarnerManager.transfer(bob, 1_000e6);
     }
 
     function test_transfer_invalidRecipient() external {
-        uint256 amount = 1_000e6;
-        mToken.setBalanceOf(alice, amount);
-
-        mEarnerManager.setAccountOf(alice, 0, 0, true, 1_000);
-
-        vm.prank(alice);
-        swapFacility.swapInM(address(mEarnerManager), amount, alice);
-
         vm.expectRevert(abi.encodeWithSelector(IERC20Extended.InvalidRecipient.selector, 0));
 
         vm.prank(alice);
-        mEarnerManager.transfer(address(0), amount);
+        mEarnerManager.transfer(address(0), 1_000e6);
     }
 
     function test_transfer() external {
         uint256 amount = 1_000e6;
-        mToken.setBalanceOf(alice, amount);
 
-        // whitelist accounts
-        mEarnerManager.setAccountOf(alice, 0, 0, true, 1_000);
+        mEarnerManager.setAccountOf(alice, amount, _getPrincipal(amount, startIndex), true, 1_000);
         mEarnerManager.setAccountOf(bob, 0, 0, true, 1_000);
-
-        vm.prank(alice);
-        swapFacility.swapInM(address(mEarnerManager), amount, alice);
 
         vm.expectEmit();
         emit IERC20.Transfer(alice, bob, amount);
@@ -881,32 +925,29 @@ contract MEarnerManagerUnitTests is BaseUnitTest {
         assertEq(mEarnerManager.balanceOf(bob), amount);
     }
 
-    function testFuzz_transfer(uint256 supply, uint256 aliceBalance, uint256 transferAmount) external {
-        supply = bound(supply, 1, type(uint112).max);
-        aliceBalance = bound(aliceBalance, 1, supply);
-        transferAmount = bound(transferAmount, 1, aliceBalance);
-        uint256 bobBalance = supply - aliceBalance;
+    function testFuzz_transfer(uint128 index, uint256 aliceBalance, uint256 transferAmount) external {
+        index = uint128(bound(index, EXP_SCALED_ONE, 10_000000000000));
+        mToken.setCurrentIndex(index);
 
-        if (bobBalance == 0) return;
+        aliceBalance = bound(aliceBalance, 0, _getMaxAmount(index));
+        transferAmount = bound(transferAmount, 0, _getMaxAmount(index));
 
-        mToken.setBalanceOf(alice, aliceBalance);
-        mToken.setBalanceOf(bob, bobBalance);
-
-        // whitelist accounts
-        mEarnerManager.setAccountOf(alice, 0, 0, true, 1_000);
+        mEarnerManager.setAccountOf(alice, aliceBalance, _getPrincipal(aliceBalance, index), true, 1_000);
         mEarnerManager.setAccountOf(bob, 0, 0, true, 1_000);
 
-        vm.prank(alice);
-        swapFacility.swapInM(address(mEarnerManager), aliceBalance, alice);
-
-        vm.prank(bob);
-        swapFacility.swapInM(address(mEarnerManager), bobBalance, bob);
+        if (transferAmount > aliceBalance) {
+            vm.expectRevert(
+                abi.encodeWithSelector(IMExtension.InsufficientBalance.selector, alice, aliceBalance, transferAmount)
+            );
+        }
 
         vm.prank(alice);
         mEarnerManager.transfer(bob, transferAmount);
 
+        if (transferAmount > aliceBalance) return;
+
         assertEq(mEarnerManager.balanceOf(alice), aliceBalance - transferAmount);
-        assertEq(mEarnerManager.balanceOf(bob), bobBalance + transferAmount);
+        assertEq(mEarnerManager.balanceOf(bob), transferAmount);
     }
 
     /* ============ enableEarning ============ */

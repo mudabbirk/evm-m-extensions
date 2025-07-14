@@ -11,8 +11,8 @@ import { WrappedMTokenMigratorV1 } from "../../lib/wrapped-m-token/src/WrappedMT
 import { Proxy } from "../../lib/common/src/Proxy.sol";
 
 import { IBlacklistable } from "../../src/components/IBlacklistable.sol";
-import { MYieldToOne } from "../../src/projects/yieldToOne/MYieldToOne.sol";
-import { UniswapV3SwapAdapter } from "../../src/swap/UniswapV3SwapAdapter.sol";
+
+import { MYieldToOneHarness } from "../harness/MYieldToOneHarness.sol";
 
 import { BaseIntegrationTest } from "../utils/BaseIntegrationTest.sol";
 
@@ -28,12 +28,12 @@ contract UniswapV3SwapAdapterIntegrationTest is BaseIntegrationTest {
 
         super.setUp();
 
-        mYieldToOne = MYieldToOne(
+        mYieldToOne = MYieldToOneHarness(
             Upgrades.deployTransparentProxy(
-                "MYieldToOne.sol:MYieldToOne",
+                "MYieldToOneHarness.sol:MYieldToOneHarness",
                 admin,
                 abi.encodeWithSelector(
-                    MYieldToOne.initialize.selector,
+                    MYieldToOneHarness.initialize.selector,
                     NAME,
                     SYMBOL,
                     yieldRecipient,

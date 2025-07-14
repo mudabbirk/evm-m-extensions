@@ -13,11 +13,13 @@ import { IMExtension } from "../../src/interfaces/IMExtension.sol";
 import { IMTokenLike } from "../../src/interfaces/IMTokenLike.sol";
 import { IRegistrarLike } from "../../src/swap/interfaces/IRegistrarLike.sol";
 
-import { MYieldToOne } from "../../src/projects/yieldToOne/MYieldToOne.sol";
 import { MYieldFee } from "../../src/projects/yieldToAllWithFee/MYieldFee.sol";
 import { MEarnerManager } from "../../src/projects/earnerManager/MEarnerManager.sol";
 import { SwapFacility } from "../../src/swap/SwapFacility.sol";
 import { UniswapV3SwapAdapter } from "../../src/swap/UniswapV3SwapAdapter.sol";
+
+import { MExtensionHarness } from "../harness/MExtensionHarness.sol";
+import { MYieldToOneHarness } from "../harness/MYieldToOneHarness.sol";
 
 import { Helpers } from "./Helpers.sol";
 
@@ -53,7 +55,7 @@ contract BaseIntegrationTest is Helpers, Test {
     address public blacklistManager = makeAddr("blacklistManager");
     address public yieldRecipient = makeAddr("yieldRecipient");
     address public yieldRecipientManager = makeAddr("yieldRecipientManager");
-    address public yieldFeeManager = makeAddr("yieldFeeManager");
+    address public feeManager = makeAddr("feeManager");
     address public claimRecipientManager = makeAddr("claimRecipientManager");
     address public earnerManager = makeAddr("earnerManager");
     address public feeRecipient = makeAddr("feeRecipient");
@@ -68,7 +70,8 @@ contract BaseIntegrationTest is Helpers, Test {
 
     address[] public accounts = [alice, bob, carol, charlie, david];
 
-    MYieldToOne public mYieldToOne;
+    MExtensionHarness public mExtension;
+    MYieldToOneHarness public mYieldToOne;
     MYieldFee public mYieldFee;
     MEarnerManager public mEarnerManager;
     SwapFacility public swapFacility;
@@ -135,16 +138,16 @@ contract BaseIntegrationTest is Helpers, Test {
         vm.deal(account, amount);
     }
 
-    function _swapInM(address mExtension, address account, address recipient, uint256 amount) internal {
+    function _swapInM(address mExtension_, address account, address recipient, uint256 amount) internal {
         vm.prank(account);
         mToken.approve(address(swapFacility), amount);
 
         vm.prank(account);
-        swapFacility.swapInM(mExtension, amount, recipient);
+        swapFacility.swapInM(mExtension_, amount, recipient);
     }
 
     function _swapInMWithPermitVRS(
-        address mExtension,
+        address mExtension_,
         address account,
         uint256 signerPrivateKey,
         address recipient,
@@ -162,15 +165,37 @@ contract BaseIntegrationTest is Helpers, Test {
         );
 
         vm.prank(account);
-        swapFacility.swapInMWithPermit(mExtension, amount, recipient, deadline, v_, r_, s_);
+        swapFacility.swapInMWithPermit(mExtension_, amount, recipient, deadline, v_, r_, s_);
     }
 
-    function _swapMOut(address mExtension, address account, address recipient, uint256 amount) internal {
-        vm.prank(account);
-        IMExtension(mExtension).approve(address(swapFacility), amount);
+    function _swapInMWithPermitSignature(
+        address mExtension_,
+        address account,
+        uint256 signerPrivateKey,
+        address recipient,
+        uint256 amount,
+        uint256 nonce,
+        uint256 deadline
+    ) internal {
+        (uint8 v_, bytes32 r_, bytes32 s_) = _getMPermit(
+            address(swapFacility),
+            account,
+            signerPrivateKey,
+            amount,
+            nonce,
+            deadline
+        );
 
         vm.prank(account);
-        swapFacility.swapOutM(mExtension, amount, recipient);
+        swapFacility.swapInMWithPermit(mExtension_, amount, recipient, deadline, abi.encodePacked(r_, s_, v_));
+    }
+
+    function _swapMOut(address mExtension_, address account, address recipient, uint256 amount) internal {
+        vm.prank(account);
+        IMExtension(mExtension_).approve(address(swapFacility), amount);
+
+        vm.prank(account);
+        swapFacility.swapOutM(mExtension_, amount, recipient);
     }
 
     function _set(bytes32 key, bytes32 value) internal {

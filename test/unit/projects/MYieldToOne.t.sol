@@ -2,6 +2,9 @@
 
 pragma solidity 0.8.26;
 
+import { IERC20 } from "../../../lib/common/src/interfaces/IERC20.sol";
+import { IERC20Extended } from "../../../lib/common/src/interfaces/IERC20Extended.sol";
+
 import {
     IAccessControl
 } from "../../../lib/common/lib/openzeppelin-contracts-upgradeable/lib/openzeppelin-contracts/contracts/access/IAccessControl.sol";
@@ -11,18 +14,19 @@ import { Upgrades, UnsafeUpgrades } from "../../../lib/openzeppelin-foundry-upgr
 import { MockM } from "../../utils/Mocks.sol";
 
 import { MYieldToOne } from "../../../src/projects/yieldToOne/MYieldToOne.sol";
+import { IMYieldToOne } from "../../../src/projects/yieldToOne/IMYieldToOne.sol";
 
 import { IBlacklistable } from "../../../src/components/IBlacklistable.sol";
-import { IMYieldToOne } from "../../../src/projects/yieldToOne/IMYieldToOne.sol";
 import { IMExtension } from "../../../src/interfaces/IMExtension.sol";
 
-import { IERC20 } from "../../../lib/common/src/interfaces/IERC20.sol";
-import { IERC20Extended } from "../../../lib/common/src/interfaces/IERC20Extended.sol";
+import { ISwapFacility } from "../../../src/swap/interfaces/ISwapFacility.sol";
+
+import { MYieldToOneHarness } from "../../harness/MYieldToOneHarness.sol";
 
 import { BaseUnitTest } from "../../utils/BaseUnitTest.sol";
 
 contract MYieldToOneUnitTests is BaseUnitTest {
-    MYieldToOne public mYieldToOne;
+    MYieldToOneHarness public mYieldToOne;
 
     string public constant NAME = "HALO USD";
     string public constant SYMBOL = "HALO USD";
@@ -30,9 +34,9 @@ contract MYieldToOneUnitTests is BaseUnitTest {
     function setUp() public override {
         super.setUp();
 
-        mYieldToOne = MYieldToOne(
+        mYieldToOne = MYieldToOneHarness(
             Upgrades.deployTransparentProxy(
-                "MYieldToOne.sol:MYieldToOne",
+                "MYieldToOneHarness.sol:MYieldToOneHarness",
                 admin,
                 abi.encodeWithSelector(
                     MYieldToOne.initialize.selector,
@@ -57,6 +61,7 @@ contract MYieldToOneUnitTests is BaseUnitTest {
         assertEq(mYieldToOne.symbol(), SYMBOL);
         assertEq(mYieldToOne.decimals(), 6);
         assertEq(mYieldToOne.mToken(), address(mToken));
+        assertEq(mYieldToOne.swapFacility(), address(swapFacility));
         assertEq(mYieldToOne.yieldRecipient(), yieldRecipient);
 
         assertTrue(IAccessControl(address(mYieldToOne)).hasRole(DEFAULT_ADMIN_ROLE, admin));
@@ -65,10 +70,10 @@ contract MYieldToOneUnitTests is BaseUnitTest {
     }
 
     function test_initialize_zeroYieldRecipient() external {
-        address implementation = address(new MYieldToOne(address(mToken), address(swapFacility)));
+        address implementation = address(new MYieldToOneHarness(address(mToken), address(swapFacility)));
 
         vm.expectRevert(IMYieldToOne.ZeroYieldRecipient.selector);
-        MYieldToOne(
+        MYieldToOneHarness(
             UnsafeUpgrades.deployTransparentProxy(
                 implementation,
                 admin,
@@ -85,11 +90,11 @@ contract MYieldToOneUnitTests is BaseUnitTest {
         );
     }
 
-    function test_initialize_zeroDefaultAdmin() external {
-        address implementation = address(new MYieldToOne(address(mToken), address(swapFacility)));
+    function test_initialize_zeroAdmin() external {
+        address implementation = address(new MYieldToOneHarness(address(mToken), address(swapFacility)));
 
         vm.expectRevert(IMYieldToOne.ZeroAdmin.selector);
-        MYieldToOne(
+        MYieldToOneHarness(
             UnsafeUpgrades.deployTransparentProxy(
                 implementation,
                 admin,
@@ -100,27 +105,6 @@ contract MYieldToOneUnitTests is BaseUnitTest {
                     address(yieldRecipient),
                     address(0),
                     blacklistManager,
-                    yieldRecipientManager
-                )
-            )
-        );
-    }
-
-    function test_initialize_zeroBlacklistManager() external {
-        address implementation = address(new MYieldToOne(address(mToken), address(swapFacility)));
-
-        vm.expectRevert(IBlacklistable.ZeroBlacklistManager.selector);
-        MYieldToOne(
-            UnsafeUpgrades.deployTransparentProxy(
-                implementation,
-                admin,
-                abi.encodeWithSelector(
-                    MYieldToOne.initialize.selector,
-                    NAME,
-                    SYMBOL,
-                    address(yieldRecipient),
-                    admin,
-                    address(0),
                     yieldRecipientManager
                 )
             )
@@ -128,10 +112,10 @@ contract MYieldToOneUnitTests is BaseUnitTest {
     }
 
     function test_initialize_zeroYieldRecipientManager() external {
-        address implementation = address(new MYieldToOne(address(mToken), address(swapFacility)));
+        address implementation = address(new MYieldToOneHarness(address(mToken), address(swapFacility)));
 
         vm.expectRevert(IMYieldToOne.ZeroYieldRecipientManager.selector);
-        MYieldToOne(
+        MYieldToOneHarness(
             UnsafeUpgrades.deployTransparentProxy(
                 implementation,
                 admin,
@@ -179,10 +163,12 @@ contract MYieldToOneUnitTests is BaseUnitTest {
         vm.prank(blacklistManager);
         mYieldToOne.blacklist(alice);
 
+        vm.mockCall(address(swapFacility), abi.encodeWithSelector(ISwapFacility.msgSender.selector), abi.encode(alice));
+
         vm.expectRevert(abi.encodeWithSelector(IBlacklistable.AccountBlacklisted.selector, alice));
 
-        vm.prank(alice);
-        swapFacility.swapInM(address(mYieldToOne), amount, bob);
+        vm.prank(address(swapFacility));
+        mYieldToOne.wrap(bob, amount);
     }
 
     function test_wrap_blacklistedRecipient() external {
@@ -194,208 +180,95 @@ contract MYieldToOneUnitTests is BaseUnitTest {
 
         vm.expectRevert(abi.encodeWithSelector(IBlacklistable.AccountBlacklisted.selector, bob));
 
-        vm.prank(alice);
-        swapFacility.swapInM(address(mYieldToOne), amount, bob);
-    }
-
-    function test_wrap_insufficientAmount() external {
-        vm.expectRevert(abi.encodeWithSelector(IERC20Extended.InsufficientAmount.selector, 0));
-
-        vm.prank(alice);
-        swapFacility.swapInM(address(mYieldToOne), 0, alice);
-    }
-
-    function test_wrap_invalidRecipient() external {
-        mToken.setBalanceOf(alice, 1_000);
-
-        vm.expectRevert(abi.encodeWithSelector(IERC20Extended.InvalidRecipient.selector, address(0)));
-
-        vm.prank(alice);
-        swapFacility.swapInM(address(mYieldToOne), 1_000, address(0));
+        vm.prank(address(swapFacility));
+        mYieldToOne.wrap(bob, amount);
     }
 
     function test_wrap() external {
-        mToken.setBalanceOf(alice, 2_000);
+        uint256 amount = 1_000e6;
+        mToken.setBalanceOf(address(swapFacility), amount);
 
-        assertEq(mToken.balanceOf(alice), 2_000);
-        assertEq(mYieldToOne.totalSupply(), 0);
-        assertEq(mYieldToOne.balanceOf(alice), 0);
-        assertEq(mYieldToOne.yield(), 0);
-
-        vm.expectEmit();
-        emit IERC20.Transfer(address(0), alice, 1_000);
-
-        vm.prank(alice);
-        swapFacility.swapInM(address(mYieldToOne), 1_000, alice);
-
-        assertEq(mToken.balanceOf(alice), 1_000);
-        assertEq(mYieldToOne.totalSupply(), 1_000);
-        assertEq(mYieldToOne.balanceOf(alice), 1_000);
-        assertEq(mToken.balanceOf(address(mYieldToOne)), 1_000);
-        assertEq(mYieldToOne.yield(), 0);
+        vm.expectCall(
+            address(mToken),
+            abi.encodeWithSelector(mToken.transferFrom.selector, address(swapFacility), address(mYieldToOne), amount)
+        );
 
         vm.expectEmit();
-        emit IERC20.Transfer(address(0), bob, 1_000);
+        emit IERC20.Transfer(address(0), alice, amount);
 
-        vm.prank(alice);
-        swapFacility.swapInM(address(mYieldToOne), 1_000, bob);
+        vm.prank(address(swapFacility));
+        mYieldToOne.wrap(alice, amount);
+
+        assertEq(mYieldToOne.balanceOf(alice), amount);
+        assertEq(mYieldToOne.totalSupply(), amount);
 
         assertEq(mToken.balanceOf(alice), 0);
-        assertEq(mYieldToOne.totalSupply(), 2_000);
-        assertEq(mYieldToOne.balanceOf(bob), 1_000);
-        assertEq(mToken.balanceOf(address(mYieldToOne)), 2_000);
-        assertEq(mYieldToOne.yield(), 0);
-
-        // simulate yield accrual by increasing accrued
-        mToken.setBalanceOf(address(mYieldToOne), 2_500);
-        assertEq(mYieldToOne.yield(), 500);
-        assertEq(mYieldToOne.balanceOf(bob), 1_000);
-        assertEq(mYieldToOne.balanceOf(alice), 1_000);
-    }
-
-    /* ============ wrapWithPermit vrs ============ */
-
-    function test_wrapWithPermit_vrs() external {
-        mToken.setBalanceOf(alice, 1_000);
-
-        assertEq(mToken.balanceOf(alice), 1_000);
-        assertEq(mYieldToOne.totalSupply(), 0);
-        assertEq(mYieldToOne.balanceOf(alice), 0);
-        assertEq(mToken.balanceOf(address(mYieldToOne)), 0);
-
-        vm.expectEmit();
-        emit IERC20.Transfer(address(0), alice, 1_000);
-
-        vm.startPrank(alice);
-        swapFacility.swapInMWithPermit(address(mYieldToOne), 1_000, alice, 0, 0, bytes32(0), bytes32(0));
-
-        assertEq(mToken.balanceOf(alice), 0);
-        assertEq(mYieldToOne.totalSupply(), 1_000);
-        assertEq(mYieldToOne.balanceOf(alice), 1_000);
-        assertEq(mToken.balanceOf(address(mYieldToOne)), 1_000);
-    }
-
-    /* ============ wrapWithPermit signature ============ */
-    function test_wrapWithPermit_signature() external {
-        mToken.setBalanceOf(alice, 1_000);
-
-        assertEq(mToken.balanceOf(alice), 1_000);
-        assertEq(mYieldToOne.totalSupply(), 0);
-        assertEq(mYieldToOne.balanceOf(alice), 0);
-        assertEq(mToken.balanceOf(address(mYieldToOne)), 0);
-
-        vm.expectEmit();
-        emit IERC20.Transfer(address(0), alice, 1_000);
-
-        vm.startPrank(alice);
-        swapFacility.swapInMWithPermit(address(mYieldToOne), 1_000, alice, 0, hex"");
-
-        assertEq(mToken.balanceOf(alice), 0);
-        assertEq(mYieldToOne.totalSupply(), 1_000);
-        assertEq(mYieldToOne.balanceOf(alice), 1_000);
-        assertEq(mToken.balanceOf(address(mYieldToOne)), 1_000);
+        assertEq(mToken.balanceOf(address(mYieldToOne)), amount);
     }
 
     /* ============ _unwrap ============ */
     function test_unwrap_blacklistedAccount() external {
         uint256 amount = 1_000e6;
-        mToken.setBalanceOf(alice, amount);
-
-        vm.prank(alice);
-        IERC20(address(mYieldToOne)).approve(address(swapFacility), amount);
-
-        vm.prank(alice);
-        swapFacility.swapInM(address(mYieldToOne), amount, alice);
+        mYieldToOne.setBalanceOf(alice, amount);
 
         vm.prank(blacklistManager);
         mYieldToOne.blacklist(alice);
 
+        vm.mockCall(address(swapFacility), abi.encodeWithSelector(ISwapFacility.msgSender.selector), abi.encode(alice));
+
         vm.expectRevert(abi.encodeWithSelector(IBlacklistable.AccountBlacklisted.selector, alice));
 
-        vm.prank(alice);
-        swapFacility.swapOutM(address(mYieldToOne), amount, bob);
-    }
-
-    function test_unwrap_insufficientAmount() external {
-        vm.expectRevert(abi.encodeWithSelector(IERC20Extended.InsufficientAmount.selector, 0));
-
-        vm.prank(alice);
-        swapFacility.swapOutM(address(mYieldToOne), 0, alice);
-    }
-
-    function test_unwrap_insufficientBalance() external {
-        mToken.setBalanceOf(alice, 999);
-        vm.prank(alice);
-        swapFacility.swapInM(address(mYieldToOne), 999, alice);
-
-        vm.prank(alice);
-        IERC20(address(mYieldToOne)).approve(address(swapFacility), 1_000);
-
-        vm.expectRevert(abi.encodeWithSelector(IMExtension.InsufficientBalance.selector, alice, 999, 1_000));
-
-        vm.prank(alice);
-        swapFacility.swapOutM(address(mYieldToOne), 1_000, alice);
+        vm.prank(address(swapFacility));
+        mYieldToOne.unwrap(alice, amount);
     }
 
     function test_unwrap() external {
-        mToken.setBalanceOf(alice, 1_000);
+        uint256 amount = 1_000e6;
 
-        vm.startPrank(alice);
-        swapFacility.swapInM(address(mYieldToOne), 1_000, alice);
-        mYieldToOne.approve(address(swapFacility), 1_000);
+        mYieldToOne.setBalanceOf(address(swapFacility), amount);
+        mYieldToOne.setBalanceOf(alice, amount);
+        mYieldToOne.setTotalSupply(amount);
 
-        assertEq(mToken.balanceOf(alice), 0);
-        assertEq(mYieldToOne.balanceOf(alice), 1_000);
-        assertEq(mYieldToOne.totalSupply(), 1_000);
+        mToken.setBalanceOf(address(mYieldToOne), amount);
 
         vm.expectEmit();
-        emit IERC20.Transfer(address(swapFacility), address(0), 1);
+        emit IERC20.Transfer(address(swapFacility), address(0), 1e6);
 
-        swapFacility.swapOutM(address(mYieldToOne), 1, alice);
+        vm.prank(address(swapFacility));
+        mYieldToOne.unwrap(alice, 1e6);
 
-        assertEq(mYieldToOne.totalSupply(), 999);
-        assertEq(mYieldToOne.balanceOf(alice), 999);
-        assertEq(mToken.balanceOf(alice), 1);
-
-        vm.expectEmit();
-        emit IERC20.Transfer(address(swapFacility), address(0), 499);
-
-        swapFacility.swapOutM(address(mYieldToOne), 499, alice);
-
-        assertEq(mYieldToOne.totalSupply(), 500);
-        assertEq(mYieldToOne.balanceOf(alice), 500);
-        assertEq(mToken.balanceOf(alice), 500);
+        assertEq(mYieldToOne.totalSupply(), 999e6);
+        assertEq(mYieldToOne.balanceOf(address(swapFacility)), 999e6);
+        assertEq(mToken.balanceOf(address(swapFacility)), 1e6);
 
         vm.expectEmit();
-        emit IERC20.Transfer(address(swapFacility), address(0), 500);
+        emit IERC20.Transfer(address(swapFacility), address(0), 499e6);
 
-        swapFacility.swapOutM(address(mYieldToOne), 500, alice);
+        vm.prank(address(swapFacility));
+        mYieldToOne.unwrap(alice, 499e6);
+
+        assertEq(mYieldToOne.totalSupply(), 500e6);
+        assertEq(mYieldToOne.balanceOf(address(swapFacility)), 500e6);
+        assertEq(mToken.balanceOf(address(swapFacility)), 500e6);
+
+        vm.expectEmit();
+        emit IERC20.Transfer(address(swapFacility), address(0), 500e6);
+
+        vm.prank(address(swapFacility));
+        mYieldToOne.unwrap(alice, 500e6);
 
         assertEq(mYieldToOne.totalSupply(), 0);
-        assertEq(mYieldToOne.balanceOf(alice), 0);
-        assertEq(mToken.balanceOf(alice), 1000);
+        assertEq(mYieldToOne.balanceOf(address(swapFacility)), 0);
+
+        // M tokens are sent to SwapFacility and then forwarded to Alice
+        assertEq(mToken.balanceOf(address(swapFacility)), amount);
+        assertEq(mToken.balanceOf(address(mYieldToOne)), 0);
     }
 
     /* ============ _transfer ============ */
-    function test_transfer_insufficientBalance() external {
-        uint256 amount = 1_000e6;
-        mToken.setBalanceOf(alice, amount);
-
-        vm.prank(alice);
-        swapFacility.swapInM(address(mYieldToOne), amount, alice);
-
-        vm.expectRevert(abi.encodeWithSelector(IMExtension.InsufficientBalance.selector, alice, amount, amount + 1));
-
-        vm.prank(alice);
-        mYieldToOne.transfer(bob, amount + 1);
-    }
-
     function test_transfer_blacklistedSender() external {
         uint256 amount = 1_000e6;
-        mToken.setBalanceOf(alice, amount);
-
-        vm.prank(alice);
-        swapFacility.swapInM(address(mYieldToOne), amount, alice);
+        mYieldToOne.setBalanceOf(alice, amount);
 
         // Alice allows Carol to transfer tokens on her behalf
         vm.prank(alice);
@@ -413,10 +286,7 @@ contract MYieldToOneUnitTests is BaseUnitTest {
 
     function test_transfer_blacklistedAccount() external {
         uint256 amount = 1_000e6;
-        mToken.setBalanceOf(alice, amount);
-
-        vm.prank(alice);
-        swapFacility.swapInM(address(mYieldToOne), amount, alice);
+        mYieldToOne.setBalanceOf(alice, amount);
 
         vm.prank(blacklistManager);
         mYieldToOne.blacklist(alice);
@@ -429,10 +299,7 @@ contract MYieldToOneUnitTests is BaseUnitTest {
 
     function test_transfer_blacklistedRecipient() external {
         uint256 amount = 1_000e6;
-        mToken.setBalanceOf(alice, amount);
-
-        vm.prank(alice);
-        swapFacility.swapInM(address(mYieldToOne), amount, alice);
+        mYieldToOne.setBalanceOf(alice, amount);
 
         vm.prank(blacklistManager);
         mYieldToOne.blacklist(bob);
@@ -443,25 +310,9 @@ contract MYieldToOneUnitTests is BaseUnitTest {
         mYieldToOne.transfer(bob, amount);
     }
 
-    function test_transfer_invalidRecipient() external {
-        uint256 amount = 1_000e6;
-        mToken.setBalanceOf(alice, amount);
-
-        vm.prank(alice);
-        swapFacility.swapInM(address(mYieldToOne), amount, alice);
-
-        vm.expectRevert(abi.encodeWithSelector(IERC20Extended.InvalidRecipient.selector, 0));
-
-        vm.prank(alice);
-        mYieldToOne.transfer(address(0), amount);
-    }
-
     function test_transfer() external {
         uint256 amount = 1_000e6;
-        mToken.setBalanceOf(alice, amount);
-
-        vm.prank(alice);
-        swapFacility.swapInM(address(mYieldToOne), amount, alice);
+        mYieldToOne.setBalanceOf(alice, amount);
 
         vm.expectEmit();
         emit IERC20.Transfer(alice, bob, amount);
@@ -474,23 +325,15 @@ contract MYieldToOneUnitTests is BaseUnitTest {
     }
 
     function testFuzz_transfer(uint256 supply, uint256 aliceBalance, uint256 transferAmount) external {
-        supply = bound(supply, 1, type(uint112).max);
+        supply = bound(supply, 1, type(uint240).max);
         aliceBalance = bound(aliceBalance, 1, supply);
         transferAmount = bound(transferAmount, 1, aliceBalance);
         uint256 bobBalance = supply - aliceBalance;
 
         if (bobBalance == 0) return;
 
-        mToken.setBalanceOf(alice, aliceBalance);
-        mToken.setBalanceOf(bob, bobBalance);
-
-        vm.prank(alice);
-        swapFacility.swapInM(address(mYieldToOne), aliceBalance, alice);
-
-        if (bobBalance > 0) {
-            vm.prank(bob);
-            swapFacility.swapInM(address(mYieldToOne), bobBalance, bob);
-        }
+        mYieldToOne.setBalanceOf(alice, aliceBalance);
+        mYieldToOne.setBalanceOf(bob, bobBalance);
 
         vm.prank(alice);
         mYieldToOne.transfer(bob, transferAmount);
@@ -501,20 +344,22 @@ contract MYieldToOneUnitTests is BaseUnitTest {
 
     /* ============ yield ============ */
     function test_yield() external {
-        mToken.setBalanceOf(alice, 1_000);
-        mToken.setBalanceOf(bob, 1_000);
-
-        vm.prank(alice);
-        swapFacility.swapInM(address(mYieldToOne), 1_000, alice);
-
-        vm.prank(bob);
-        swapFacility.swapInM(address(mYieldToOne), 1_000, bob);
-
         assertEq(mYieldToOne.yield(), 0);
 
-        mToken.setBalanceOf(address(mYieldToOne), mYieldToOne.totalSupply() + 500);
+        mToken.setBalanceOf(address(mYieldToOne), 1_500e6);
+        mYieldToOne.setTotalSupply(1_000e6);
 
-        assertEq(mYieldToOne.yield(), 500);
+        assertEq(mYieldToOne.yield(), 500e6);
+    }
+
+    function testFuzz_yield(uint256 mBalance, uint256 totalSupply) external {
+        mBalance = bound(mBalance, 0, type(uint240).max);
+        totalSupply = bound(totalSupply, 0, mBalance);
+
+        mToken.setBalanceOf(address(mYieldToOne), mBalance);
+        mYieldToOne.setTotalSupply(totalSupply);
+
+        assertEq(mYieldToOne.yield(), mBalance - totalSupply);
     }
 
     /* ============ claimYield ============ */
@@ -526,66 +371,25 @@ contract MYieldToOneUnitTests is BaseUnitTest {
     }
 
     function test_claimYield() external {
-        mToken.setBalanceOf(alice, 1_000);
+        uint256 yield = 500e6;
 
-        vm.prank(alice);
-        swapFacility.swapInM(address(mYieldToOne), 1_000, alice);
+        mToken.setBalanceOf(address(mYieldToOne), 1_500e6);
+        mYieldToOne.setTotalSupply(1_000e6);
 
-        mToken.setBalanceOf(address(mYieldToOne), mYieldToOne.totalSupply() + 500);
-
-        assertEq(mYieldToOne.yield(), 500);
+        assertEq(mYieldToOne.yield(), yield);
 
         vm.expectEmit();
-        emit IMYieldToOne.YieldClaimed(500);
+        emit IMYieldToOne.YieldClaimed(yield);
 
-        mYieldToOne.claimYield();
+        assertEq(mYieldToOne.claimYield(), yield);
 
         assertEq(mYieldToOne.yield(), 0);
 
-        assertEq(mToken.balanceOf(address(mYieldToOne)), mYieldToOne.totalSupply());
-        assertEq(mToken.balanceOf(address(mYieldToOne)), 1_500);
+        assertEq(mToken.balanceOf(address(mYieldToOne)), 1_500e6);
+        assertEq(mYieldToOne.totalSupply(), 1_500e6);
 
         assertEq(mToken.balanceOf(yieldRecipient), 0);
-        assertEq(mYieldToOne.balanceOf(yieldRecipient), 500);
-    }
-
-    /* ============ enableEarning ============ */
-
-    function test_enableEarning_earningEnabled() external {
-        mYieldToOne.enableEarning();
-
-        vm.expectRevert(IMExtension.EarningIsEnabled.selector);
-        mYieldToOne.enableEarning();
-    }
-
-    function test_enableEarning() external {
-        mToken.setCurrentIndex(1_210000000000);
-
-        vm.expectEmit();
-        emit IMExtension.EarningEnabled(1_210000000000);
-
-        mYieldToOne.enableEarning();
-
-        assertEq(mYieldToOne.isEarningEnabled(), true);
-    }
-
-    /* ============ disableEarning ============ */
-
-    function test_disableEarning_earningIsDisabled() external {
-        vm.expectRevert(IMExtension.EarningIsDisabled.selector);
-        mYieldToOne.disableEarning();
-    }
-
-    function test_disableEarning() external {
-        mToken.setCurrentIndex(1_100000000000);
-
-        mYieldToOne.enableEarning();
-
-        mToken.setCurrentIndex(1_200000000000);
-
-        mYieldToOne.disableEarning();
-
-        assertEq(mYieldToOne.isEarningEnabled(), false);
+        assertEq(mYieldToOne.balanceOf(yieldRecipient), yield);
     }
 
     /* ============ setYieldRecipient ============ */

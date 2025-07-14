@@ -218,3 +218,11 @@ contract MExtensionUpgrade is Initializable {
         return 1;
     }
 }
+
+contract MockSwapFacility {
+    address public msgSender;
+
+    function setMsgSender(address msgSender_) external {
+        msgSender = msgSender_;
+    }
+}

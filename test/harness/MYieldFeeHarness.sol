@@ -14,10 +14,10 @@ contract MYieldFeeHarness is MYieldFee {
         uint16 feeRate,
         address feeRecipient,
         address admin,
-        address yieldFeeManager,
+        address feeManager,
         address claimRecipientManager
     ) public override initializer {
-        super.initialize(name, symbol, feeRate, feeRecipient, admin, yieldFeeManager, claimRecipientManager);
+        super.initialize(name, symbol, feeRate, feeRecipient, admin, feeManager, claimRecipientManager);
     }
 
     function latestEarnerRateAccrualTimestamp() external view returns (uint40) {
