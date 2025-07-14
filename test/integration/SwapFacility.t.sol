@@ -84,6 +84,36 @@ contract SwapFacilityIntegrationTest is BaseIntegrationTest {
         assertEq(mYieldToOne.balanceOf(USER), 0);
     }
 
+    function test_swap_wrappedM_to_mYieldToOne_entireBalance() public {
+        uint256 amount = IERC20(WRAPPED_M).balanceOf(USER);
+
+        assertEq(mYieldToOne.balanceOf(USER), 0);
+
+        vm.startPrank(USER);
+        IERC20(WRAPPED_M).approve(address(swapFacility), amount);
+        swapFacility.swap(WRAPPED_M, address(mYieldToOne), amount, USER);
+
+        assertEq(IERC20(address(mYieldToOne)).balanceOf(USER), amount);
+        assertEq(IERC20(WRAPPED_M).balanceOf(USER), 0);
+    }
+
+    function test_swap_mYieldToOne_to_wrappedM_entireBalance() public {
+        uint256 amount = IERC20(address(mToken)).balanceOf(USER);
+        uint256 wrappedMBalanceBefore = IERC20(WRAPPED_M).balanceOf(USER);
+
+        vm.startPrank(USER);
+        IERC20(address(mToken)).approve(address(swapFacility), amount);
+        swapFacility.swapInM(address(mYieldToOne), amount, USER);
+
+        assertEq(mYieldToOne.balanceOf(USER), amount);
+
+        mYieldToOne.approve(address(swapFacility), amount);
+        swapFacility.swap(address(mYieldToOne), WRAPPED_M, amount, USER);
+
+        assertEq(IERC20(address(mYieldToOne)).balanceOf(USER), 0);
+        assertEq(IERC20(WRAPPED_M).balanceOf(USER), wrappedMBalanceBefore + amount);
+    }
+
     /// @dev Using lower fuzz runs and depth to avoid burning through RPC requests in CI
     /// forge-config: default.fuzz.runs = 100
     /// forge-config: default.fuzz.depth = 20
