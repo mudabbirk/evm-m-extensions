@@ -70,8 +70,8 @@ contract UniswapV3SwapAdapterIntegrationTest is BaseIntegrationTest {
         assertEq(swapAdapter.uniswapRouter(), UNISWAP_V3_ROUTER);
         assertEq(swapAdapter.wrappedMToken(), WRAPPED_M);
         assertEq(swapAdapter.swapFacility(), address(swapFacility));
-        assertTrue(swapAdapter.whitelistedTokens(USDC));
-        assertTrue(swapAdapter.whitelistedTokens(USDT));
+        assertTrue(swapAdapter.whitelistedToken(USDC));
+        assertTrue(swapAdapter.whitelistedToken(USDT));
     }
 
     function test_swapIn_USDC_to_wrappedM() public {

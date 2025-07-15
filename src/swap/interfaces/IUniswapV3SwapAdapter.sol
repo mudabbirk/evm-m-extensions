@@ -4,7 +4,8 @@ pragma solidity 0.8.26;
 
 /**
  * @title  UniswapV3 swap adapter interface.
- * @author MetaStreet Foundation
+ * @author M0 Labs
+ *         MetaStreet Foundation
  *         Adapted from https://github.com/metastreet-labs/metastreet-usdai-contracts/blob/main/src/swapAdapters/UniswapV3SwapAdapter.sol
  */
 interface IUniswapV3SwapAdapter {
@@ -117,7 +118,7 @@ interface IUniswapV3SwapAdapter {
     ) external;
 
     /**
-     * @notice Adds or removes a token from the whitelist.
+     * @notice Adds or removes a token from the whitelist of tokens that can be used in  Uniswap path.
      * @param  token         The address of the token.
      * @param  isWhitelisted True to whitelist the token, false otherwise.
      */
@@ -133,4 +134,11 @@ interface IUniswapV3SwapAdapter {
 
     /// @notice The address of the Uniswap V3 swap router.
     function uniswapRouter() external view returns (address uniswapRouter);
+
+    /**
+     * @notice Indicates whether `token` is whitelisted to be used in Uniswap path.
+     * @param  token         The address of the token.
+     * @return isWhitelisted True if the token is whitelisted, false otherwise.
+     */
+    function whitelistedToken(address token) external view returns (bool isWhitelisted);
 }
