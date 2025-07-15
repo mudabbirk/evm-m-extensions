@@ -61,6 +61,10 @@ contract UniswapV3SwapAdapter is IUniswapV3SwapAdapter, AccessControl, Reentranc
         for (uint256 i; i < whitelistedTokens_.length; ++i) {
             _whitelistToken(whitelistedTokens_[i], true);
         }
+
+        // Max approve SwapFacility and Uniswap Router to spend Wrapped $M to save gas
+        IERC20(wrappedMToken).approve(swapFacility, type(uint256).max);
+        IERC20(wrappedMToken).approve(uniswapRouter, type(uint256).max);
     }
 
     /// @inheritdoc IUniswapV3SwapAdapter
@@ -96,7 +100,6 @@ contract UniswapV3SwapAdapter is IUniswapV3SwapAdapter, AccessControl, Reentranc
 
         if (extensionOut != wrappedMToken) {
             // Swap the Wrapped $M to extensionOut
-            IERC20(wrappedMToken).approve(address(swapFacility), amountOut);
             ISwapFacility(swapFacility).swap(wrappedMToken, extensionOut, amountOut, recipient);
         }
 
@@ -132,8 +135,6 @@ contract UniswapV3SwapAdapter is IUniswapV3SwapAdapter, AccessControl, Reentranc
             IERC20(extensionIn).approve(address(swapFacility), amountIn);
             ISwapFacility(swapFacility).swap(extensionIn, wrappedMToken, amountIn, address(this));
         }
-
-        IERC20(wrappedMToken).approve(uniswapRouter, amountIn);
 
         // Swap Wrapped $M to tokenOut in Uniswap V3 pool
         uint256 amountOut = IV3SwapRouter(uniswapRouter).exactInput(
