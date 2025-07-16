@@ -118,7 +118,7 @@ interface IUniswapV3SwapAdapter {
     ) external;
 
     /**
-     * @notice Adds or removes a token from the whitelist of tokens that can be used in  Uniswap path.
+     * @notice Adds or removes a token from the whitelist of tokens that can be used in Uniswap path.
      * @param  token         The address of the token.
      * @param  isWhitelisted True to whitelist the token, false otherwise.
      */
