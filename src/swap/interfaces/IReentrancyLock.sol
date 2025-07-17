@@ -18,7 +18,7 @@ interface IReentrancyLock {
 
     /* ============ Custom Errors ============ */
 
-    /// @notice Thrown in contract is already locked.
+    /// @notice Thrown if contract is already locked.
     error ContractLocked();
 
     /// @notice Thrown if the admin is 0x0.

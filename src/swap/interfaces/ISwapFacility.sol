@@ -16,7 +16,7 @@ interface ISwapFacility {
      * @param amount       The amount swapped.
      * @param recipient    The address to receive the output $M Extension token.
      */
-    event Swapped(address indexed extensionIn, address indexed extensionOut, uint256 amount, address recipient);
+    event Swapped(address indexed extensionIn, address indexed extensionOut, uint256 amount, address indexed recipient);
 
     /**
      * @notice Emitted when $M token is swapped for $M Extension.
@@ -24,7 +24,7 @@ interface ISwapFacility {
      * @param amount       The amount swapped.
      * @param recipient    The address to receive the output $M Extension token.
      */
-    event SwappedInM(address indexed extensionOut, uint256 amount, address recipient);
+    event SwappedInM(address indexed extensionOut, uint256 amount, address indexed recipient);
 
     /**
      * @notice Emitted when $M Extension is swapped for $M token.
@@ -32,7 +32,7 @@ interface ISwapFacility {
      * @param amount       The amount swapped.
      * @param recipient    The address to receive the $M token.
      */
-    event SwappedOutM(address indexed extensionIn, uint256 amount, address recipient);
+    event SwappedOutM(address indexed extensionIn, uint256 amount, address indexed recipient);
 
     /* ============ Custom Errors ============ */
 
