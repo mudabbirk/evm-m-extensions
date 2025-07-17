@@ -165,20 +165,4 @@ contract UniswapV3SwapAdapterUnitTests is Test {
         vm.expectRevert(abi.encodeWithSelector(IUniswapV3SwapAdapter.NotWhitelistedToken.selector, token));
         swapAdapter.swapOut(address(wrappedM), amountIn, token, minAmountOut, alice, "");
     }
-
-    function test_swapOut_notWhitelistedToken_intermediaryToken() public {
-        uint256 amountIn = 1_000_000;
-        uint256 minAmountOut = 997_000;
-        address token = makeAddr("token");
-
-        bytes memory path = abi.encodePacked(address(wrappedM), uint24(100), token, uint24(100), USDC);
-
-        vm.expectRevert(abi.encodeWithSelector(IUniswapV3SwapAdapter.NotWhitelistedToken.selector, token));
-        swapAdapter.swapOut(address(wrappedM), amountIn, USDC, minAmountOut, alice, path);
-
-        path = abi.encodePacked(address(wrappedM), uint24(100), USDT, uint24(100), token, uint24(100), USDC);
-
-        vm.expectRevert(abi.encodeWithSelector(IUniswapV3SwapAdapter.NotWhitelistedToken.selector, token));
-        swapAdapter.swapOut(address(wrappedM), amountIn, USDC, minAmountOut, alice, path);
-    }
 }

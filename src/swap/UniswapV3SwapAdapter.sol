@@ -10,7 +10,6 @@ import { ReentrancyLock } from "../../lib/uniswap-v4-periphery/src/base/Reentran
 import { IUniswapV3SwapAdapter } from "./interfaces/IUniswapV3SwapAdapter.sol";
 import { ISwapFacility } from "./interfaces/ISwapFacility.sol";
 import { IV3SwapRouter } from "./interfaces/uniswap/IV3SwapRouter.sol";
-import { UniswapV3Path } from "./libs/UniswapV3Path.sol";
 
 /**
  * @title  Uniswap V3 Swap Adapter
@@ -20,10 +19,21 @@ import { UniswapV3Path } from "./libs/UniswapV3Path.sol";
  */
 contract UniswapV3SwapAdapter is IUniswapV3SwapAdapter, AccessControl, ReentrancyLock {
     using SafeERC20 for IERC20;
-    using UniswapV3Path for bytes;
 
     /// @notice Fee for Uniswap V3 USDC - Wrapped $M pool.
     uint24 internal constant UNISWAP_V3_FEE = 100;
+
+    /// @notice Path address size
+    uint256 internal constant PATH_ADDR_SIZE = 20;
+
+    /// @notice Path fee size
+    uint256 internal constant PATH_FEE_SIZE = 3;
+
+    /// @notice Path next offset
+    uint256 internal constant PATH_NEXT_OFFSET = PATH_ADDR_SIZE + PATH_FEE_SIZE;
+
+    /// @notice Single pool path size
+    uint256 internal constant PATH_SINGLE_POOL_SIZE = PATH_ADDR_SIZE + PATH_FEE_SIZE + PATH_ADDR_SIZE;
 
     /// @inheritdoc IUniswapV3SwapAdapter
     address public immutable wrappedMToken;
@@ -180,23 +190,24 @@ contract UniswapV3SwapAdapter is IUniswapV3SwapAdapter, AccessControl, Reentranc
 
     /**
      * @notice Decodes input and output tokens from the Uniswap V3 path.
-     * @dev    Validates whether intermediary tokens in the multi-hop path are whitelisted.
      * @param  path            The UniswapV3 swap path.
      * @return decodedTokenIn  The address of the input token from the path.
      * @return decodedTokenOut The address of the output token from the path.
      */
     function _decodeAndValidatePathTokens(
         bytes calldata path
-    ) internal view returns (address decodedTokenIn, address decodedTokenOut) {
-        (decodedTokenIn, , decodedTokenOut) = path.decodeFirstPool();
-        address intermediaryToken;
+    ) internal pure returns (address decodedTokenIn, address decodedTokenOut) {
+        // Validate path format
+        if ((path.length < PATH_SINGLE_POOL_SIZE) || ((path.length - PATH_ADDR_SIZE) % PATH_NEXT_OFFSET != 0))
+            revert InvalidPathFormat();
 
-        while (path.hasMultiplePools()) {
-            path = path.skipToken();
-            (intermediaryToken, , decodedTokenOut) = path.decodeFirstPool();
+        decodedTokenIn = address(bytes20(path[:PATH_ADDR_SIZE]));
 
-            _revertIfNotWhitelistedToken(intermediaryToken);
-        }
+        // Calculate position of output token
+        uint256 numberOfPools = (path.length - PATH_ADDR_SIZE) / PATH_NEXT_OFFSET;
+        uint256 outputTokenIndex = numberOfPools * PATH_NEXT_OFFSET;
+
+        decodedTokenOut = address(bytes20(path[outputTokenIndex:outputTokenIndex + PATH_ADDR_SIZE]));
     }
 
     /**
