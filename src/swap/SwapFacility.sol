@@ -3,10 +3,6 @@
 pragma solidity 0.8.26;
 
 import { IERC20 } from "../../lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
-import { SafeERC20 } from "../../lib/openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
-import {
-    AccessControlUpgradeable
-} from "../../lib/common/lib/openzeppelin-contracts-upgradeable/contracts/access/AccessControlUpgradeable.sol";
 
 import { IMTokenLike } from "../interfaces/IMTokenLike.sol";
 import { IMExtension } from "../interfaces/IMExtension.sol";
@@ -21,9 +17,7 @@ import { ReentrancyLock } from "./ReentrancyLock.sol";
  * @notice A contract responsible for swapping between $M Extensions.
  * @author M0 Labs
  */
-contract SwapFacility is ISwapFacility, AccessControlUpgradeable, ReentrancyLock {
-    using SafeERC20 for IERC20;
-
+contract SwapFacility is ISwapFacility, ReentrancyLock {
     bytes32 public constant EARNERS_LIST_IGNORED_KEY = "earners_list_ignored";
     bytes32 public constant EARNERS_LIST_NAME = "earners";
 
@@ -58,8 +52,6 @@ contract SwapFacility is ISwapFacility, AccessControlUpgradeable, ReentrancyLock
      */
     function initialize(address admin) external initializer {
         __ReentrancyLock_init(admin);
-
-        _grantRole(DEFAULT_ADMIN_ROLE, admin);
     }
 
     /* ============ Interactive Functions ============ */
@@ -246,15 +238,6 @@ contract SwapFacility is ISwapFacility, AccessControlUpgradeable, ReentrancyLock
         IERC20(mToken).transfer(recipient, amount);
 
         emit SwappedOutM(extensionIn, amount, recipient);
-    }
-
-    /**
-     * @dev    Returns the M Token balance of `account`.
-     * @param  account The account being queried.
-     * @return balance The M Token balance of the account.
-     */
-    function _mBalanceOf(address account) internal view returns (uint256) {
-        return IMTokenLike(mToken).balanceOf(account);
     }
 
     /* ============ Private View/Pure Functions ============ */
