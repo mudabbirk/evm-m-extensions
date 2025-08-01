@@ -55,12 +55,12 @@ contract MYieldToOne is IMYieldToOne, MYieldToOneStorageLayout, MExtension, Blac
 
     /**
      * @dev   Initializes the M extension token with yield claimable by a single recipient.
-     * @param name                   The name of the token (e.g. "M Yield to One").
-     * @param symbol                 The symbol of the token (e.g. "MYO").
-     * @param yieldRecipient_        The address of an yield destination.
-     * @param admin           The address of a admin.
-     * @param blacklistManager       The address of a blacklist manager.
-     * @param yieldRecipientManager  The address of a yield recipient setter.
+     * @param name                  The name of the token (e.g. "M Yield to One").
+     * @param symbol                The symbol of the token (e.g. "MYO").
+     * @param yieldRecipient_       The address of a yield destination.
+     * @param admin                 The address of an admin.
+     * @param blacklistManager      The address of a blacklist manager.
+     * @param yieldRecipientManager The address of a yield recipient setter.
      */
     function initialize(
         string memory name,
@@ -70,6 +70,26 @@ contract MYieldToOne is IMYieldToOne, MYieldToOneStorageLayout, MExtension, Blac
         address blacklistManager,
         address yieldRecipientManager
     ) public virtual initializer {
+        __MYieldToOne_init(name, symbol, yieldRecipient_, admin, blacklistManager, yieldRecipientManager);
+    }
+
+    /**
+     * @notice Initializes the MYieldToOne token.
+     * @param name                  The name of the token (e.g. "M Yield to One").
+     * @param symbol                The symbol of the token (e.g. "MYO").
+     * @param yieldRecipient_       The address of a yield destination.
+     * @param admin                 The address of an admin.
+     * @param blacklistManager      The address of a blacklist manager.
+     * @param yieldRecipientManager The address of a yield recipient setter.
+     */
+    function __MYieldToOne_init(
+        string memory name,
+        string memory symbol,
+        address yieldRecipient_,
+        address admin,
+        address blacklistManager,
+        address yieldRecipientManager
+    ) internal onlyInitializing {
         if (yieldRecipientManager == address(0)) revert ZeroYieldRecipientManager();
         if (admin == address(0)) revert ZeroAdmin();
 
@@ -85,7 +105,7 @@ contract MYieldToOne is IMYieldToOne, MYieldToOneStorageLayout, MExtension, Blac
     /* ============ Interactive Functions ============ */
 
     /// @inheritdoc IMYieldToOne
-    function claimYield() public returns (uint256) {
+    function claimYield() public virtual returns (uint256) {
         uint256 yield_ = yield();
 
         if (yield_ == 0) return 0;
@@ -151,7 +171,7 @@ contract MYieldToOne is IMYieldToOne, MYieldToOneStorageLayout, MExtension, Blac
      * @param  account   The account from which M is deposited.
      * @param  recipient The account receiving the minted M Extension token.
      */
-    function _beforeWrap(address account, address recipient, uint256 /* amount */) internal view override {
+    function _beforeWrap(address account, address recipient, uint256 /* amount */) internal view virtual override {
         BlacklistableStorageStruct storage $ = _getBlacklistableStorageLocation();
 
         _revertIfBlacklisted($, account);
@@ -162,7 +182,7 @@ contract MYieldToOne is IMYieldToOne, MYieldToOneStorageLayout, MExtension, Blac
      * @dev   Hook called before unwrapping M Extension token.
      * @param account The account from which M Extension token is burned.
      */
-    function _beforeUnwrap(address account, uint256 /* amount */) internal view override {
+    function _beforeUnwrap(address account, uint256 /* amount */) internal view virtual override {
         _revertIfBlacklisted(_getBlacklistableStorageLocation(), account);
     }
 
@@ -171,7 +191,7 @@ contract MYieldToOne is IMYieldToOne, MYieldToOneStorageLayout, MExtension, Blac
      * @param sender    The address from which the tokens are being transferred.
      * @param recipient The address to which the tokens are being transferred.
      */
-    function _beforeTransfer(address sender, address recipient, uint256 /* amount */) internal view override {
+    function _beforeTransfer(address sender, address recipient, uint256 /* amount */) internal view virtual override {
         BlacklistableStorageStruct storage $ = _getBlacklistableStorageLocation();
 
         _revertIfBlacklisted($, msg.sender);
