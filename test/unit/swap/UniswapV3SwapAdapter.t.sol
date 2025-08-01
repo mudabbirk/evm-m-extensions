@@ -31,6 +31,7 @@ contract UniswapV3SwapAdapterUnitTests is Test {
         whitelistedToken[1] = USDT;
 
         wrappedM = new MockMExtension(address(new MockM()), swapFacility);
+
         swapAdapter = new UniswapV3SwapAdapter(
             address(wrappedM),
             swapFacility,
