@@ -47,11 +47,11 @@ contract Config {
     address public constant REGISTRAR = 0x119FbeeDD4F4f4298Fb59B720d5654442b81ae2c;
 
     address public constant UNISWAP_ROUTER_ETHEREUM = address(0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45);
-    address public constant UNISWAP_ROUTER_ARBITRUM = address(0xA51afAFe0263b40EdaEf0Df8781eA9aa03E381a3);
-    address public constant UNISWAP_ROUTER_OPTIMISM = address(0x851116D9223fabED8E56C0E6b8Ad0c31d98B3507);
+    address public constant UNISWAP_ROUTER_ARBITRUM = address(0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45);
+    address public constant UNISWAP_ROUTER_OPTIMISM = address(0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45);
 
-    address public constant UNISWAP_ROUTER_SEPOLIA = address(0x3A9D48AB9751398BbFa63ad67599Bb04e4BdF98b);
-    address public constant UNISWAP_ROUTER_ARBITRUM_SEPOLIA = address(0xeFd1D4bD4cf1e86Da286BB4CB1B8BcED9C10BA47);
+    address public constant UNISWAP_ROUTER_SEPOLIA = address(0x3bFA4769FB09eefC5a80d6E87c3B9C650f7Ae48E);
+    address public constant UNISWAP_ROUTER_ARBITRUM_SEPOLIA = address(0x101F443B4d1b059569D643917553c771E1b9663E);
 
     address public constant WHITELISTED_TOKEN_0_ETHEREUM = address(0);
     address public constant WHITELISTED_TOKEN_1_ETHEREUM = address(0);
