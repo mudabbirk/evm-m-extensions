@@ -70,7 +70,7 @@ contract Config {
             config.wrappedMToken = WRAPPED_M_TOKEN;
             config.registrar = REGISTRAR;
             config.uniswapV3Router = UNISWAP_ROUTER_ETHEREUM;
-            config.admin = address(0);
+            config.admin = address(0xF2f1ACbe0BA726fEE8d75f3E32900526874740BB);
             return config;
         }
 
