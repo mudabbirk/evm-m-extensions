@@ -13,7 +13,6 @@ import { IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol"
 
 contract MainnetDeploymentSim is DeployBase {
     address public constant USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
-    address public constant USDT = 0xdAC17F958D2ee523a2206206994597C13D831ec7;
 
     function run() public {
         address deployer = vm.addr(vm.envUint("PRIVATE_KEY"));
@@ -42,7 +41,6 @@ contract MainnetDeploymentSim is DeployBase {
         wm.approve(address(facility), type(uint256).max);
         wm.approve(address(adapter), type(uint256).max);
         IERC20(USDC).approve(address(adapter), type(uint256).max);
-        USDT.call(abi.encodeWithSelector(IERC20.approve.selector, address(adapter), type(uint256).max));
 
         facility.swapInM(WRAPPED_M_TOKEN, 10000, deployer);
 
@@ -62,17 +60,7 @@ contract MainnetDeploymentSim is DeployBase {
 
         console.log("wmBalance", wmBalance);
 
-        adapter.swapOut(WRAPPED_M_TOKEN, wmBalance, USDT, 0, deployer, "");
-
-        uint256 usdtBalance = IERC20(USDT).balanceOf(deployer);
-
-        console.log("usdtBalance", usdtBalance);
-
-        adapter.swapIn(USDT, usdtBalance, WRAPPED_M_TOKEN, 0, deployer, "");
-
-        wmBalance = wm.balanceOf(deployer);
-
-        console.log("wmBalance", wmBalance);
+        facility.swapOutM(WRAPPED_M_TOKEN, wmBalance, deployer);
 
         vm.stopPrank();
     }
