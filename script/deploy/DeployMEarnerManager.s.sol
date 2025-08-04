@@ -9,13 +9,13 @@ contract DeployMEarnerManager is DeployBase {
     function run() public {
         address deployer = vm.addr(vm.envUint("PRIVATE_KEY"));
 
-        vm.startBroadcast();
+        vm.startBroadcast(deployer);
 
         (
             address earnerManagerImplementation,
             address earnerManagerProxy,
             address earnerManagerProxyAdmin
-        ) = _deployMEarnerManager(deployer, deployer);
+        ) = _deployMEarnerManager(deployer);
 
         vm.stopBroadcast();
 

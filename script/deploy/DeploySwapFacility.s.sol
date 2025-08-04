@@ -9,7 +9,7 @@ contract DeploySwapFacility is DeployBase {
     function run() public {
         address deployer = vm.addr(vm.envUint("PRIVATE_KEY"));
 
-        vm.startBroadcast();
+        vm.startBroadcast(deployer);
 
         (
             address swapFacilityImplementation,

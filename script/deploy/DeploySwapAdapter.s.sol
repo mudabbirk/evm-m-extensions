@@ -7,11 +7,11 @@ import { console } from "forge-std/console.sol";
 
 contract DeploySwapAdapter is DeployBase {
     function run() public {
-        address deployer_ = vm.addr(vm.envUint("PRIVATE_KEY"));
+        address deployer = vm.addr(vm.envUint("PRIVATE_KEY"));
 
-        vm.startBroadcast();
+        vm.startBroadcast(deployer);
 
-        address swapAdater = _deploySwapAdapter(deployer_);
+        address swapAdater = _deploySwapAdapter(deployer);
 
         vm.stopBroadcast();
 

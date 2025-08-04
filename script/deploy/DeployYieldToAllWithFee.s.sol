@@ -9,13 +9,13 @@ contract DeployYeildToAllWithFee is DeployBase {
     function run() public {
         address deployer = vm.addr(vm.envUint("PRIVATE_KEY"));
 
-        vm.startBroadcast();
+        vm.startBroadcast(deployer);
 
         (
             address yieldToAllWithFeeImplementation,
             address yieldToAllWithFeeProxy,
             address yieldToAllWithFeeProxyAdmin
-        ) = _deployYieldToAllWithFee(deployer, deployer);
+        ) = _deployYieldToAllWithFee(deployer);
 
         vm.stopBroadcast();
 
