@@ -2,8 +2,6 @@
 
 pragma solidity 0.8.26;
 
-import { console } from "forge-std/console.sol";
-
 import { Options } from "../../lib/openzeppelin-foundry-upgrades/src/Options.sol";
 import { Upgrades } from "../../lib/openzeppelin-foundry-upgrades/src/Upgrades.sol";
 
@@ -92,8 +90,7 @@ contract DeployBase is ScriptBase {
     }
 
     function _deployMEarnerManager(
-        address deployer,
-        address admin
+        address deployer
     ) internal returns (address implementation, address proxy, address proxyAdmin) {
         DeployConfig memory config = _getDeployConfig(block.chainid);
 
@@ -121,8 +118,7 @@ contract DeployBase is ScriptBase {
     }
 
     function _deployYieldToOne(
-        address deployer,
-        address admin
+        address deployer
     ) internal returns (address implementation, address proxy, address proxyAdmin) {
         DeployConfig memory config = _getDeployConfig(block.chainid);
 
@@ -149,8 +145,7 @@ contract DeployBase is ScriptBase {
     }
 
     function _deployYieldToAllWithFee(
-        address deployer,
-        address admin
+        address deployer
     ) internal returns (address implementation, address proxy, address proxyAdmin) {
         DeployConfig memory config = _getDeployConfig(block.chainid);
 

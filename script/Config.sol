@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import { Vm } from "forge-std/Vm.sol";
-
 contract Config {
     error UnsupportedChain(uint256 chainId);
 
@@ -157,7 +155,7 @@ contract Config {
         }
     }
 
-    function _getWhitelistedTokens(uint256 chainId_) internal view returns (address[] memory whitelistedTokens) {
+    function _getWhitelistedTokens(uint256 chainId_) internal pure returns (address[] memory whitelistedTokens) {
         whitelistedTokens = new address[](2);
 
         if (chainId_ == ETHEREUM_CHAIN_ID) {
