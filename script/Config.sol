@@ -53,8 +53,10 @@ contract Config {
     address public constant UNISWAP_ROUTER_SEPOLIA = address(0x3A9D48AB9751398BbFa63ad67599Bb04e4BdF98b);
     address public constant UNISWAP_ROUTER_ARBITRUM_SEPOLIA = address(0xeFd1D4bD4cf1e86Da286BB4CB1B8BcED9C10BA47);
 
-    address public constant WHITELISTED_TOKEN_0_ETHEREUM = address(0);
-    address public constant WHITELISTED_TOKEN_1_ETHEREUM = address(0);
+    address public constant WHITELISTED_TOKEN_0_ETHEREUM = M_TOKEN;
+    address public constant WHITELISTED_TOKEN_1_ETHEREUM = WRAPPED_M_TOKEN;
+    address public constant WHITELISTED_TOKEN_2_ETHEREUM = address(0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48); // USDC
+    address public constant WHITELISTED_TOKEN_3_ETHEREUM = address(0xdAC17F958D2ee523a2206206994597C13D831ec7); // USDT
 
     address public constant WHITELISTED_TOKEN_0_SEPOLIA = address(M_TOKEN);
     address public constant WHITELISTED_TOKEN_1_SEPOLIA = address(WRAPPED_M_TOKEN);
@@ -156,14 +158,16 @@ contract Config {
     }
 
     function _getWhitelistedTokens(uint256 chainId_) internal pure returns (address[] memory whitelistedTokens) {
-        whitelistedTokens = new address[](2);
-
         if (chainId_ == ETHEREUM_CHAIN_ID) {
+            whitelistedTokens = new address[](4);
             whitelistedTokens[0] = WHITELISTED_TOKEN_0_ETHEREUM;
             whitelistedTokens[1] = WHITELISTED_TOKEN_1_ETHEREUM;
+            whitelistedTokens[2] = WHITELISTED_TOKEN_2_ETHEREUM;
+            whitelistedTokens[3] = WHITELISTED_TOKEN_3_ETHEREUM;
         }
 
         if (chainId_ == SEPOLIA_CHAIN_ID) {
+            whitelistedTokens = new address[](2);
             whitelistedTokens[0] = WHITELISTED_TOKEN_0_SEPOLIA;
             whitelistedTokens[1] = WHITELISTED_TOKEN_1_SEPOLIA;
         }
