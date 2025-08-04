@@ -48,7 +48,7 @@ contract Config {
     address public constant WRAPPED_M_TOKEN = 0x437cc33344a0B27A429f795ff6B469C72698B291;
     address public constant REGISTRAR = 0x119FbeeDD4F4f4298Fb59B720d5654442b81ae2c;
 
-    address public constant UNISWAP_ROUTER_ETHEREUM = address(0x66a9893cC07D91D95644AEDD05D03f95e1dBA8Af);
+    address public constant UNISWAP_ROUTER_ETHEREUM = address(0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45);
     address public constant UNISWAP_ROUTER_ARBITRUM = address(0xA51afAFe0263b40EdaEf0Df8781eA9aa03E381a3);
     address public constant UNISWAP_ROUTER_OPTIMISM = address(0x851116D9223fabED8E56C0E6b8Ad0c31d98B3507);
 
