@@ -42,13 +42,23 @@ contract MainnetDeploymentSim is DeployBase {
         wm.approve(address(facility), type(uint256).max);
         wm.approve(address(adapter), type(uint256).max);
         IERC20(USDC).approve(address(adapter), type(uint256).max);
-        (bool success, ) = USDT.call(
-            abi.encodeWithSelector(IERC20.approve.selector, address(adapter), type(uint256).max)
-        );
+        USDT.call(abi.encodeWithSelector(IERC20.approve.selector, address(adapter), type(uint256).max));
 
         facility.swapInM(WRAPPED_M_TOKEN, 10000, deployer);
 
         uint256 wmBalance = wm.balanceOf(deployer);
+
+        console.log("wmBalance", wmBalance);
+
+        adapter.swapOut(WRAPPED_M_TOKEN, wmBalance, USDC, 0, deployer, "");
+
+        uint256 usdcBalance = IERC20(USDC).balanceOf(deployer);
+
+        console.log("usdcBalance", usdcBalance);
+
+        adapter.swapIn(USDC, usdcBalance, WRAPPED_M_TOKEN, 0, deployer, "");
+
+        wmBalance = wm.balanceOf(deployer);
 
         console.log("wmBalance", wmBalance);
 
