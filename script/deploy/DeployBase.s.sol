@@ -138,6 +138,7 @@ contract DeployBase is ScriptBase {
                 extensionConfig.name,
                 extensionConfig.symbol,
                 extensionConfig.yieldRecipient,
+                extensionConfig.admin,
                 extensionConfig.blacklistManager,
                 extensionConfig.yieldRecipientManager
             ),
