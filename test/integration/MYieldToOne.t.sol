@@ -36,7 +36,7 @@ contract MYieldToOneIntegrationTests is BaseIntegrationTest {
                     SYMBOL,
                     yieldRecipient,
                     admin,
-                    blacklistManager,
+                    freezeManager,
                     yieldRecipientManager
                 ),
                 mExtensionDeployOptions
@@ -56,7 +56,7 @@ contract MYieldToOneIntegrationTests is BaseIntegrationTest {
         assertEq(mYieldToOne.yieldRecipient(), yieldRecipient);
 
         assertTrue(IAccessControl(address(mYieldToOne)).hasRole(DEFAULT_ADMIN_ROLE, admin));
-        assertTrue(IAccessControl(address(mYieldToOne)).hasRole(BLACKLIST_MANAGER_ROLE, blacklistManager));
+        assertTrue(IAccessControl(address(mYieldToOne)).hasRole(FREEZE_MANAGER_ROLE, freezeManager));
         assertTrue(IAccessControl(address(mYieldToOne)).hasRole(YIELD_RECIPIENT_MANAGER_ROLE, yieldRecipientManager));
     }
 
