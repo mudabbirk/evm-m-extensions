@@ -190,7 +190,7 @@ contract SwapFacility is ISwapFacility, ReentrancyLock, SwapFacilityUpgradeableS
     function setPermissionedExtension(address extension, bool permissioned) external onlyRole(DEFAULT_ADMIN_ROLE) {
         if (extension == address(0)) revert ZeroExtension();
 
-        if (isPermissionedExtension(extension)) return;
+        if (isPermissionedExtension(extension) == permissioned) return;
 
         _getSwapFacilityStorageLocation().permissionedExtensions[extension] = permissioned;
 
@@ -206,7 +206,7 @@ contract SwapFacility is ISwapFacility, ReentrancyLock, SwapFacilityUpgradeableS
         if (extension == address(0)) revert ZeroExtension();
         if (swapper == address(0)) revert ZeroSwapper();
 
-        if (isPermissionedMSwapper(extension, swapper)) return;
+        if (isPermissionedMSwapper(extension, swapper) == allowed) return;
 
         _getSwapFacilityStorageLocation().permissionedMSwappers[extension][swapper] = allowed;
 
