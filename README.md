@@ -38,6 +38,12 @@ Each extension inherits from the abstract `MExtension` base contract, which defi
   - Uses an external `rateOracle` for fee calculation
   - Inherits most behavior from `MYieldFee`
 
+- **`MYieldToAllAssignment`**
+  - All holders earn yeild
+  - Yield is claimable by earners by calling 'claimFor' function. Does not accrue directly to balances (not a rebasing token!)
+  - Maintains a whitelist and only whitelisted users can mint/burn. However, all users can transfer or be transferred to, and all holders can claim yield.
+  - Inherits most behavior from `MYieldFee`
+
 ---
 
 ### 🔁 SwapFacility
